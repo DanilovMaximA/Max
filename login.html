@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Вход — Тренажёр по дробям</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/login.css">
+</head>
+<body class="login-page">
+    <div class="login-wrap">
+        <div class="login-card">
+            <div class="login-glow" aria-hidden="true"></div>
+            <div class="login-inner">
+                <div class="login-form-col">
+                    <div class="login-badge">
+                        <span class="login-badge-dot"></span>
+                        Тренажёр по математике
+                    </div>
+                    <h1 class="login-title">
+                        ИИ-репетитор
+                        <span class="login-title-accent">по дробям</span>
+                    </h1>
+                    <p class="login-subtitle">
+                        Войдите или зарегистрируйтесь, чтобы начать занятия и отслеживать прогресс.
+                    </p>
+
+                    <div class="login-tabs">
+                        <button type="button" class="login-tab active" data-mode="login">Вход</button>
+                        <button type="button" class="login-tab" data-mode="register">Регистрация</button>
+                    </div>
+
+                    <form id="login-form" class="login-form" novalidate>
+                        <p id="login-error" class="login-error hidden"></p>
+                        <label class="login-label">
+                            <span>Email</span>
+                            <input type="email" id="login-email" required autocomplete="email" placeholder="you@example.com">
+                        </label>
+                        <label class="login-label">
+                            <span>Пароль</span>
+                            <input type="password" id="login-password" required minlength="6" autocomplete="current-password" placeholder="••••••••">
+                        </label>
+                        <label class="login-label login-label-name hidden">
+                            <span>Имя</span>
+                            <input type="text" id="login-name" autocomplete="name" placeholder="Как к вам обращаться">
+                        </label>
+                        <div class="login-actions">
+                            <button type="submit" id="login-submit" class="login-btn login-btn-primary">Войти</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="login-decor-col">
+                    <div class="login-decor-glow"></div>
+                    <canvas id="login-globe" class="login-globe-canvas" width="400" height="400"></canvas>
+                    <div class="login-decor-text">
+                        <p>Дроби, десятичные, темы 5 класса</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="/static/globe.js"></script>
+    <script src="/static/login.js"></script>
+</body>
+</html>

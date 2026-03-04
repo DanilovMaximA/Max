@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Учитель — Тренажёр дроби</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Панель учителя</h1>
+            <div class="auth-block">
+                <a href="/app" class="auth-btn">На тренажёр</a>
+            </div>
+        </header>
+        <p id="auth-required" class="hidden">Войдите как учитель или администратор.</p>
+        <section id="teacher-content" class="hidden">
+            <h2>Класс / Группа</h2>
+            <ul id="students-list"></ul>
+            <h3>Детали ученика</h3>
+            <div id="student-detail" class="hidden">
+                <p id="detail-name"></p>
+                <p id="detail-gamification"></p>
+                <p id="detail-errors"></p>
+                <ul id="detail-topics"></ul>
+                <p>Последние попытки:</p>
+                <ul id="detail-attempts"></ul>
+            </div>
+        </section>
+    </div>
+    <script>
+        fetch('/api/me').then(r => r.json()).then(data => {
+            const user = data.user;
+            if (!user || (user.role !== 'teacher' && user.role !== 'admin')) {
+                document.getElementById('auth-required').classList.remove('hidden');
+                return;
+            }
+            document.getElementById('teacher-content').classList.remove('hidden');
+            return fetch('/api/teacher/students');
+        }).then(r => r && r.json()).then(data => {
+            if (!data || !data.students) return;
+            const ul = document.getElementById('students-list');
+            data.students.forEach(s => {
+                const li = document.createElement('li');
+                li.innerHTML = `<strong>${s.name || s.email}</strong> — ⭐ ${s.total_stars} | 🔥 ${s.current_streak} | тем: ${s.progress_summary.length}`;
+                li.style.cursor = 'pointer';
+                li.onclick = () => loadStudentDetail(s.id);
+                ul.appendChild(li);
+            });
+        }).catch(() => {});
+
+        function loadStudentDetail(id) {
+            fetch('/api/teacher/students/' + id).then(r => r.json()).then(data => {
+                const d = document.getElementById('student-detail');
+                d.classList.remove('hidden');
+                document.getElementById('detail-name').textContent = 'Ученик: ' + (data.student.name || data.student.email);
+                const g = data.gamification;
+                document.getElementById('detail-gamification').textContent = `⭐ ${g.total_stars} | Серия: ${g.current_streak} | Лучшая: ${g.best_streak} | ${g.status_name} | Сундуков: ${g.chests_available}`;
+                const err = data.error_type_counts || {};
+                document.getElementById('detail-errors').textContent = 'Типы ошибок: ' + (Object.keys(err).length ? JSON.stringify(err) : 'нет данных');
+                const tUl = document.getElementById('detail-topics');
+                tUl.innerHTML = '';
+                (data.topics_progress || []).forEach(t => {
+                    const li = document.createElement('li');
+                    li.textContent = (t.name || t.operation) + ': ' + t.progress_pct + '%';
+                    tUl.appendChild(li);
+                });
+                const aUl = document.getElementById('detail-attempts');
+                aUl.innerHTML = '';
+                (data.recent_attempts || []).forEach(a => {
+                    const li = document.createElement('li');
+                    li.textContent = a.operation + ' — ' + (a.is_correct ? '✓' : '✗') + ' ' + (a.created_at || '');
+                    aUl.appendChild(li);
+                });
+            });
+        }
+    </script>
+</body>
+</html>

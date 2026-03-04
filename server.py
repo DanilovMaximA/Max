@@ -15,7 +15,9 @@ from ai_service import ai_service
 from gamification import update_gamification
 from auth_provider import SessionAuthProvider
 
-app = Flask(__name__, static_folder='static')
+# Путь к static относительно server.py — так же работает при деплое (Render и т.д.)
+_static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
+app = Flask(__name__, static_folder=_static_dir)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-in-production')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URI', 'sqlite:///matema.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False

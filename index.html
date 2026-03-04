@@ -1,13 +1,176 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
     <meta charset="utf-8">
-    <title>Дроби: тренажер (локальный сервер)</title>
-    <link rel="stylesheet" href="style.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Тренажёр: дроби</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
 </head>
 <body>
-    <!-- тот же HTML, что и ранее -->
-    <!-- подключение скрипта: -->
-    <script src="script.js"></script>
+    <div class="container">
+        <header class="page-header">
+            <div class="header-top">
+                <span id="auth-user" class="header-user hidden"></span>
+                <div class="header-actions">
+                    <div class="profile-dropdown-wrap">
+                        <button type="button" id="btn-profile" class="auth-btn hidden" aria-expanded="false" aria-haspopup="true">Профиль</button>
+                        <div id="profile-dropdown" class="profile-dropdown hidden" role="menu">
+                            <div class="profile-dropdown-body">
+                                <p class="profile-row"><span class="profile-label">Школа:</span> <span id="profile-school-val">—</span></p>
+                                <p class="profile-row"><span class="profile-label">Класс:</span> <span id="profile-class-val">—</span></p>
+                                <p class="profile-row"><span class="profile-label">Уровень:</span> <span id="profile-level-val">—</span></p>
+                                <p class="profile-row"><span class="profile-label">Звёзды:</span> <span id="profile-stars-val">0</span> ⭐</p>
+                                <p class="profile-row"><span class="profile-label">Сундуки:</span> <span id="profile-chests-val">0</span> 🎁</p>
+                                <p class="profile-row"><span class="profile-label">Учитель:</span> <span id="profile-teachers-val">—</span></p>
+                                <a href="/app/profile" class="auth-btn login-btn-primary profile-edit-btn">Редактировать профиль</a>
+                            </div>
+                        </div>
+                    </div>
+                    <a href="/teacher" class="auth-btn hidden" id="btn-teacher">Учитель</a>
+                    <a href="/parent" class="auth-btn hidden" id="btn-parent">Родитель</a>
+                    <button type="button" id="btn-logout" class="auth-btn auth-btn-outline hidden">Выйти</button>
+                </div>
+            </div>
+            <h1 id="main-title">Тренажёр по дробям</h1>
+            <nav class="section-tabs" role="tablist">
+                <button type="button" class="tab active" data-section="ordinary" role="tab" aria-selected="true">Обыкновенные дроби</button>
+                <button type="button" class="tab" data-section="grade5" role="tab" aria-selected="false">Обыкновенные дроби 5 класс</button>
+                <button type="button" class="tab" data-section="decimal" role="tab" aria-selected="false">Десятичные дроби</button>
+            </nav>
+        </header>
+
+        <!-- Раздел: Обыкновенные дроби -->
+        <section class="page-section" id="section-ordinary" role="tabpanel">
+            <h2 class="section-title">Обыкновенные дроби</h2>
+            <div class="theme-switcher">
+                <label>Действие:</label>
+                <select id="operation-select-ordinary">
+                    <option value="add">Сложение</option>
+                    <option value="subtract">Вычитание</option>
+                    <option value="multiply">Умножение</option>
+                    <option value="divide">Деление</option>
+                    <option value="power">Возведение в степень</option>
+                    <option value="compare">Сравнение дробей</option>
+                    <option value="reduce">Сокращение дробей</option>
+                    <option value="convert">Преобразование (смешанное ↔ обыкновенное)</option>
+                </select>
+            </div>
+            <details class="theory">
+                <summary>Краткая теория</summary>
+                <div id="theory-content-ordinary"></div>
+            </details>
+        </section>
+
+        <!-- Раздел: Обыкновенные дроби 5 класс -->
+        <section class="page-section hidden" id="section-grade5" role="tabpanel">
+            <h2 class="section-title">Обыкновенные дроби 5 класс</h2>
+            <div class="theme-switcher">
+                <label>Действие:</label>
+                <select id="operation-select-grade5">
+                    <option value="add_subtract_same_den">Сложение и вычитание дробей с одинаковыми знаменателями</option>
+                    <option value="natural_div_fraction">Деление натуральных чисел и дроби</option>
+                    <option value="mixed_numbers">Смешанные числа</option>
+                    <option value="add_subtract_mixed">Сложение и вычитание смешанных чисел</option>
+                    <option value="basic_property">Основное свойство дроби</option>
+                    <option value="reduce">Сокращение дробей</option>
+                    <option value="common_denominator">Приведение дробей к общему знаменателю</option>
+                    <option value="compare_add_subtract">Сравнение, сложение и вычитание дробей с разными знаменателями</option>
+                    <option value="multiply">Умножение дробей</option>
+                    <option value="fraction_of_number">Нахождение части целого (дроби от числа)</option>
+                    <option value="divide">Деление дробей</option>
+                    <option value="whole_from_part">Нахождение целого по его части</option>
+                </select>
+            </div>
+            <details class="theory">
+                <summary>Краткая теория</summary>
+                <div id="theory-content-grade5"></div>
+            </details>
+        </section>
+
+        <!-- Раздел: Десятичные дроби -->
+        <section class="page-section hidden" id="section-decimal" role="tabpanel">
+            <h2 class="section-title">Десятичные дроби</h2>
+            <div class="theme-switcher">
+                <label>Действие:</label>
+                <select id="operation-select-decimal">
+                    <option value="decimal_add">Сложение</option>
+                    <option value="decimal_subtract">Вычитание</option>
+                    <option value="decimal_multiply">Умножение</option>
+                    <option value="decimal_divide">Деление</option>
+                    <option value="decimal_compare">Сравнение</option>
+                    <option value="decimal_to_common">В обыкновенную дробь</option>
+                    <option value="common_to_decimal">В десятичную дробь</option>
+                    <option value="decimal_round">Округление</option>
+                </select>
+            </div>
+            <details class="theory">
+                <summary>Краткая теория</summary>
+                <div id="theory-content-decimal"></div>
+            </details>
+        </section>
+
+        <!-- Общая часть: задача, ввод, кнопки, разбор, статистика -->
+        <div id="trainer-block">
+        <section class="task-section">
+            <p class="task-label">Задача:</p>
+            <p id="task-text" class="task-text">—</p>
+        </section>
+
+        <section class="inputs-section" id="inputs-add-subtract">
+            <label>Общий знаменатель: <input type="number" id="den-common" min="1" placeholder="НОК"></label>
+            <label>Числитель первой дроби после приведения: <input type="number" id="num1-new" min="0" placeholder=""></label>
+            <label>Числитель второй дроби после приведения: <input type="number" id="num2-new" min="0" placeholder=""></label>
+            <label id="result-row">Результат (числитель/знаменатель): <input type="text" id="result" placeholder="например 11/12"></label>
+        </section>
+
+        <section class="inputs-section hidden" id="inputs-single-result">
+            <label>Результат: <input type="text" id="result-single" placeholder="например 3/4"></label>
+        </section>
+
+        <section class="inputs-section hidden" id="inputs-compare">
+            <label>Сравнение: </label>
+            <div class="compare-buttons">
+                <button type="button" class="compare-btn" data-compare="<">&lt;</button>
+                <button type="button" class="compare-btn" data-compare="=">=</button>
+                <button type="button" class="compare-btn" data-compare=">">&gt;</button>
+            </div>
+            <input type="hidden" id="comparison-value" value="">
+        </section>
+
+        <section class="inputs-section hidden" id="inputs-convert-mixed">
+            <label>Целая часть: <input type="number" id="int-part" min="0" placeholder=""></label>
+            <label>Числитель дроби: <input type="number" id="convert-num" min="0" placeholder=""></label>
+            <label>Знаменатель дроби: <input type="number" id="convert-den" min="1" placeholder=""></label>
+        </section>
+
+        <section class="buttons">
+            <button type="button" id="check-btn">Проверить</button>
+            <button type="button" id="next-btn" style="display:none;">Следующая задача</button>
+            <button type="button" id="reset-stats" class="secondary">Сбросить статистику</button>
+        </section>
+
+        <section id="analysis" class="analysis" style="display:none;">
+            <h3>Разбор</h3>
+            <p id="analysis-text"></p>
+            <button type="button" id="not-understood-btn" class="alt-explanation-btn">Не понятно? Показать другой разбор</button>
+            <p class="viz-label">Визуализация:</p>
+            <canvas id="fraction-canvas" width="700" height="250"></canvas>
+        </section>
+        </div>
+
+        <footer class="stats">
+            <span>Всего попыток: <strong id="total">0</strong></span>
+            <span>Правильно: <strong id="correct">0</strong></span>
+            <span>Ошибок: <strong id="wrong">0</strong></span>
+            <span id="gamification-stats" class="gamification-stats hidden">
+                <span>⭐ <strong id="total-stars">0</strong></span>
+                <span>🔥 Серия: <strong id="current-streak">0</strong></span>
+            </span>
+        </footer>
+    </div>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>
+    <script src="/static/script.js"></script>
 </body>
 </html>
