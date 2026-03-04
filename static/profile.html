@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Редактировать профиль — Тренажёр по дробям</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/login.css">
+</head>
+<body class="login-page">
+    <div class="login-wrap">
+        <div class="login-card">
+            <div class="login-inner" style="flex-direction: column; min-height: auto;">
+                <div class="login-form-col" style="padding: 2rem;">
+                    <h1 class="login-title">Редактировать профиль</h1>
+                    <p id="profile-error" class="login-error hidden"></p>
+                    <form id="profile-form" class="login-form">
+                        <label class="login-label">
+                            <span>Школа</span>
+                            <input type="text" id="profile-school" placeholder="Например: Гимназия № 1">
+                        </label>
+                        <label class="login-label">
+                            <span>Класс</span>
+                            <input type="text" id="profile-class" placeholder="Например: 5А или 6">
+                        </label>
+                        <div class="login-actions" style="display: flex; gap: 0.5rem; margin-top: 1rem;">
+                            <button type="submit" class="login-btn login-btn-primary">Сохранить</button>
+                            <a href="/app" class="login-btn" style="text-decoration: none; text-align: center; line-height: 2.2;">Назад к тренажёру</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        (function () {
+            var form = document.getElementById('profile-form');
+            var schoolInput = document.getElementById('profile-school');
+            var classInput = document.getElementById('profile-class');
+            var errorEl = document.getElementById('profile-error');
+
+            function showError(msg) {
+                errorEl.textContent = msg;
+                errorEl.classList.remove('hidden');
+            }
+
+            fetch('/api/profile')
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (data.school !== undefined) schoolInput.value = data.school || '';
+                    if (data.school_class !== undefined) classInput.value = data.school_class || '';
+                })
+                .catch(function () {});
+
+            form.addEventListener('submit', function (e) {
+                e.preventDefault();
+                errorEl.classList.add('hidden');
+                fetch('/api/profile', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        school: schoolInput.value.trim(),
+                        school_class: classInput.value.trim()
+                    })
+                })
+                    .then(function (r) { return r.json(); })
+                    .then(function (data) {
+                        if (data.ok) {
+                            window.location.href = '/app';
+                        } else {
+                            showError(data.error || 'Ошибка сохранения');
+                        }
+                    })
+                    .catch(function () {
+                        showError('Ошибка сети');
+                    });
+            });
+        })();
+    </script>
+</body>
+</html>

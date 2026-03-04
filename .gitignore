@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+
+# База данных (локальная, на Render создаётся заново)
+instance/
+*.db
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

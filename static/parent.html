@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Родитель — Тренажёр дроби</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Панель родителя</h1>
+            <div class="auth-block">
+                <a href="/app" class="auth-btn">На тренажёр</a>
+            </div>
+        </header>
+        <p id="auth-required" class="hidden">Войдите как родитель или администратор.</p>
+        <section id="parent-content" class="hidden">
+            <h2>Мои дети</h2>
+            <ul id="children-list"></ul>
+            <h3>Прогресс ребёнка</h3>
+            <div id="child-dashboard" class="hidden">
+                <p id="dash-name"></p>
+                <p id="dash-stats"></p>
+                <p>Прогресс по темам:</p>
+                <ul id="dash-topics"></ul>
+                <p>Недавние события:</p>
+                <ul id="dash-events"></ul>
+            </div>
+        </section>
+    </div>
+    <script>
+        fetch('/api/me').then(r => r.json()).then(data => {
+            const user = data.user;
+            if (!user || (user.role !== 'parent' && user.role !== 'admin')) {
+                document.getElementById('auth-required').classList.remove('hidden');
+                return;
+            }
+            document.getElementById('parent-content').classList.remove('hidden');
+            return fetch('/api/parent/children');
+        }).then(r => r && r.json()).then(data => {
+            if (!data || !data.children) return;
+            const ul = document.getElementById('children-list');
+            data.children.forEach(c => {
+                const li = document.createElement('li');
+                li.innerHTML = '<strong>' + (c.name || c.email) + '</strong>';
+                li.style.cursor = 'pointer';
+                li.onclick = () => loadDashboard(c.id);
+                ul.appendChild(li);
+            });
+        }).catch(() => {});
+
+        function loadDashboard(childId) {
+            fetch('/api/parent/children/' + childId + '/dashboard').then(r => r.json()).then(data => {
+                const d = document.getElementById('child-dashboard');
+                d.classList.remove('hidden');
+                document.getElementById('dash-name').textContent = 'Ребёнок: ' + (data.child.name || data.child.email);
+                document.getElementById('dash-stats').textContent = '⭐ ' + data.total_stars + ' | 🔥 Серия: ' + data.current_streak + ' | Лучшая: ' + data.best_streak + ' | ' + data.status_name + ' | Сундуков: ' + data.chests_available;
+                const tUl = document.getElementById('dash-topics');
+                tUl.innerHTML = '';
+                (data.topics_progress || []).forEach(t => {
+                    const li = document.createElement('li');
+                    li.textContent = (t.name || 'Тема') + ': ' + t.progress_pct + '%';
+                    tUl.appendChild(li);
+                });
+                const eUl = document.getElementById('dash-events');
+                eUl.innerHTML = '';
+                (data.recent_events || []).forEach(e => {
+                    const li = document.createElement('li');
+                    li.textContent = e.event_type + ' — ' + (e.created_at || '');
+                    eUl.appendChild(li);
+                });
+            });
+        }
+    </script>
+</body>
+</html>

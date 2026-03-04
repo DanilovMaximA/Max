@@ -1,0 +1,18 @@
+# Деплой на Render.com (бесплатный тариф)
+# Подключите репозиторий GitHub в Render → New Web Service → укажите репозиторий.
+# Build Command: pip install -r requirements.txt
+# Start Command: gunicorn server:app
+# Добавьте переменную окружения: SECRET_KEY = случайная строка (например из https://randomkeygen.com/)
+# База SQLite на бесплатном тарифе будет сбрасываться при перезапуске; для постоянных данных подключите PostgreSQL в Render.
+
+services:
+  - type: web
+    name: matema
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn server:app
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PYTHON_VERSION
+        value: "3.11"
