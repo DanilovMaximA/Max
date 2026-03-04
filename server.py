@@ -192,6 +192,17 @@ def index():
     return send_from_directory('static', 'login.html')
 
 
+@app.route('/login')
+def login_redirect():
+    return redirect('/')
+
+
+@app.route('/index')
+@app.route('/index.html')
+def index_redirect():
+    return redirect('/')
+
+
 @app.route('/app')
 def app_page():
     if not get_current_user():
@@ -1683,3 +1694,6 @@ if __name__ == '__main__':
     init_db()
     threading.Timer(1.0, open_browser).start()
     app.run(debug=True, port=5000)
+else:
+    # При запуске через gunicorn (Render и т.д.) создаём таблицы и темы при импорте
+    init_db()
