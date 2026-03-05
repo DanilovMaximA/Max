@@ -233,20 +233,31 @@ function showInputsForOperation(op) {
 
 async function fetchNewTask() {
     taskAlreadyCheckedCorrect = false;
-    const response = await fetch(`/api/new_task?operation=${currentOperation}`);
-    const data = await response.json();
-    currentTask = data.task;
-    currentCorrect = data.correct;
-    currentOperation = currentTask.operation || currentOperation;
-    syncSelectFromOperation();
-    displayTask();
-    clearInputs();
-    hideAnalysis();
-    showInputsForOperation(currentOperation);
-    updateTheory();
-    useAltExplanation = false;
-    const btnEl = document.getElementById('not-understood-btn');
-    if (btnEl) btnEl.textContent = 'Не понятно? Показать другой разбор';
+    try {
+        const response = await fetch(`/api/new_task?operation=${currentOperation}`, { credentials: 'include' });
+        const text = await response.text();
+        let data;
+        try {
+            data = JSON.parse(text);
+        } catch (_) {
+            console.error('Ошибка загрузки задачи');
+            return;
+        }
+        currentTask = data.task;
+        currentCorrect = data.correct;
+        currentOperation = currentTask.operation || currentOperation;
+        syncSelectFromOperation();
+        displayTask();
+        clearInputs();
+        hideAnalysis();
+        showInputsForOperation(currentOperation);
+        updateTheory();
+        useAltExplanation = false;
+        const btnEl = document.getElementById('not-understood-btn');
+        if (btnEl) btnEl.textContent = 'Не понятно? Показать другой разбор';
+    } catch (e) {
+        console.error('Ошибка загрузки задачи:', e);
+    }
 }
 
 function syncSelectFromOperation() {
@@ -470,10 +481,12 @@ function drawVisualization(viz) {
         }
         if (viz.before_reduce) {
             const br = viz.before_reduce;
+            const eq1 = r.num === 1 && r.den === 1 ? ` = ${colored('#e74c3c', '1')}` : '';
             lines.push(`\\text{Действие: } ${colored('#3498db', frac(br.num, br.den))}`);
-            lines.push(`\\text{Сокращение: } ${frac(br.num, br.den)} = ${colored('#e74c3c', frac(r.num, r.den))}`);
+            lines.push(`\\text{Сокращение: } ${frac(br.num, br.den)} = ${colored('#e74c3c', frac(r.num, r.den))}${eq1}`);
         } else {
-            lines.push(`\\text{Результат: } ${colored('#e74c3c', frac(r.num, r.den))}`);
+            const eq1 = r.num === 1 && r.den === 1 ? ` = ${colored('#e74c3c', '1')}` : '';
+            lines.push(`\\text{Результат: } ${colored('#e74c3c', frac(r.num, r.den))}${eq1}`);
         }
     } else if (op === 'multiply' && viz.original && viz.correct_result) {
         const n1 = viz.original.num1, d1 = viz.original.den1;
@@ -481,10 +494,12 @@ function drawVisualization(viz) {
         const r = viz.correct_result;
         if (viz.before_reduce) {
             const br = viz.before_reduce;
+            const eq1 = r.num === 1 && r.den === 1 ? ` = ${colored('#e74c3c', '1')}` : '';
             lines.push(`${colored('#4a90e2', frac(n1, d1))} \\times ${colored('#50c878', frac(n2, d2))} = ${colored('#3498db', frac(br.num, br.den))}`);
-            lines.push(`\\text{Сокращение: } ${frac(br.num, br.den)} = ${colored('#e74c3c', frac(r.num, r.den))}`);
+            lines.push(`\\text{Сокращение: } ${frac(br.num, br.den)} = ${colored('#e74c3c', frac(r.num, r.den))}${eq1}`);
         } else {
-            lines.push(`${colored('#4a90e2', frac(n1, d1))} \\times ${colored('#50c878', frac(n2, d2))} = ${colored('#e74c3c', frac(r.num, r.den))}`);
+            const eq1 = r.num === 1 && r.den === 1 ? ` = ${colored('#e74c3c', '1')}` : '';
+            lines.push(`${colored('#4a90e2', frac(n1, d1))} \\times ${colored('#50c878', frac(n2, d2))} = ${colored('#e74c3c', frac(r.num, r.den))}${eq1}`);
         }
     } else if (op === 'divide' && viz.original && viz.correct_result) {
         const n1 = viz.original.num1, d1 = viz.original.den1;
@@ -492,25 +507,30 @@ function drawVisualization(viz) {
         const r = viz.correct_result;
         if (viz.before_reduce) {
             const br = viz.before_reduce;
+            const eq1 = r.num === 1 && r.den === 1 ? ` = ${colored('#e74c3c', '1')}` : '';
             lines.push(`${colored('#4a90e2', frac(n1, d1))} \\div ${colored('#50c878', frac(n2, d2))} = ${colored('#4a90e2', frac(n1, d1))} \\times ${colored('#50c878', frac(d2, n2))} = ${colored('#3498db', frac(br.num, br.den))}`);
-            lines.push(`\\text{Сокращение: } ${frac(br.num, br.den)} = ${colored('#e74c3c', frac(r.num, r.den))}`);
+            lines.push(`\\text{Сокращение: } ${frac(br.num, br.den)} = ${colored('#e74c3c', frac(r.num, r.den))}${eq1}`);
         } else {
-            lines.push(`${colored('#4a90e2', frac(n1, d1))} \\div ${colored('#50c878', frac(n2, d2))} = ${colored('#4a90e2', frac(n1, d1))} \\times ${colored('#50c878', frac(d2, n2))} = ${colored('#e74c3c', frac(r.num, r.den))}`);
+            const eq1 = r.num === 1 && r.den === 1 ? ` = ${colored('#e74c3c', '1')}` : '';
+            lines.push(`${colored('#4a90e2', frac(n1, d1))} \\div ${colored('#50c878', frac(n2, d2))} = ${colored('#4a90e2', frac(n1, d1))} \\times ${colored('#50c878', frac(d2, n2))} = ${colored('#e74c3c', frac(r.num, r.den))}${eq1}`);
         }
     } else if (op === 'power' && viz.original && viz.correct_result) {
         const n = viz.original.num1, d = viz.original.den1, exp = viz.original.num2;
         const r = viz.correct_result;
         if (viz.before_reduce) {
             const br = viz.before_reduce;
+            const eq1 = r.num === 1 && r.den === 1 ? ` = ${colored('#e74c3c', '1')}` : '';
             lines.push(`\\left(${frac(n, d)}\\right)^{${exp}} = ${frac(n + '^{' + exp + '}', d + '^{' + exp + '}')} = ${colored('#3498db', frac(br.num, br.den))}`);
-            lines.push(`\\text{Сокращение: } ${frac(br.num, br.den)} = ${colored('#e74c3c', frac(r.num, r.den))}`);
+            lines.push(`\\text{Сокращение: } ${frac(br.num, br.den)} = ${colored('#e74c3c', frac(r.num, r.den))}${eq1}`);
         } else {
-            lines.push(`\\left(${frac(n, d)}\\right)^{${exp}} = ${frac(n + '^{' + exp + '}', d + '^{' + exp + '}')} = ${colored('#e74c3c', frac(r.num, r.den))}`);
+            const eq1 = r.num === 1 && r.den === 1 ? ` = ${colored('#e74c3c', '1')}` : '';
+            lines.push(`\\left(${frac(n, d)}\\right)^{${exp}} = ${frac(n + '^{' + exp + '}', d + '^{' + exp + '}')} = ${colored('#e74c3c', frac(r.num, r.den))}${eq1}`);
         }
     } else if (op === 'reduce' && viz.original && viz.correct_result) {
         const n = viz.original.num1, d = viz.original.den1;
         const r = viz.correct_result;
-        lines.push(`${frac(n, d)} = ${colored('#e74c3c', frac(r.num, r.den))}`);
+        const eq1 = r.num === 1 && r.den === 1 ? ` = ${colored('#e74c3c', '1')}` : '';
+        lines.push(`${frac(n, d)} = ${colored('#e74c3c', frac(r.num, r.den))}${eq1}`);
     } else if (op === 'compare' && viz.original) {
         const n1 = viz.original.num1, d1 = viz.original.den1;
         const n2 = viz.original.num2, d2 = viz.original.den2;
@@ -538,7 +558,9 @@ function drawVisualization(viz) {
             lines.push(`\\text{Правильный ответ: } ${colored('#e74c3c', viz.correct_result.result_str.replace(',', '{,}'))}`);
         }
     } else if (viz.correct_result && typeof viz.correct_result.num === 'number') {
-        lines.push(`\\text{Правильный ответ: } ${colored('#e74c3c', frac(viz.correct_result.num, viz.correct_result.den))}`);
+        const r = viz.correct_result;
+        const eq1 = r.num === 1 && r.den === 1 ? ` = ${colored('#e74c3c', '1')}` : '';
+        lines.push(`\\text{Правильный ответ: } ${colored('#e74c3c', frac(r.num, r.den))}${eq1}`);
     }
 
     if (lines.length === 0) return;
@@ -553,6 +575,24 @@ function drawVisualization(viz) {
 
 async function checkAnswer() {
     if (taskAlreadyCheckedCorrect) return;  // повторное нажатие — не засчитывать, не переходить
+    if (!currentTask) {
+        console.warn('Задача ещё не загружена');
+        return;
+    }
+    const checkBtn = document.getElementById('check-btn');
+    if (checkBtn) checkBtn.disabled = true;
+    try {
+        await checkAnswerCore();
+    } catch (e) {
+        console.error('Ошибка проверки:', e);
+        if (checkBtn) checkBtn.disabled = false;
+        const msg = e.message || (e.name === 'TypeError' ? 'Ошибка сети. Проверьте соединение и попробуйте снова.' : 'Ошибка проверки. Попробуйте обновить страницу.');
+        alert(msg);
+    }
+}
+
+async function checkAnswerCore() {
+    const checkBtn = document.getElementById('check-btn');
     let userAnswers = {};
     const op = currentOperation;
     const useAddSubtractInputs = (op === 'add' || op === 'subtract') ||
@@ -583,12 +623,27 @@ async function checkAnswer() {
         userAnswers = { result: single ? single.value.trim() : '' };
     }
 
-    const response = await fetch('/api/check', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ task: currentTask, user_answers: userAnswers, section: currentSection })
-    });
-    const result = await response.json();
+    let response, result;
+    try {
+        response = await fetch('/api/check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ task: currentTask, user_answers: userAnswers, section: currentSection }),
+            credentials: 'include'
+        });
+        const text = await response.text();
+        try {
+            result = JSON.parse(text);
+        } catch (_) {
+            throw new Error('Сервер вернул неверный ответ. Попробуйте обновить страницу.');
+        }
+    } catch (e) {
+        const btn = document.getElementById('check-btn');
+        if (btn) btn.disabled = false;
+        throw e;
+    }
+    const btn = document.getElementById('check-btn');
+    if (btn) btn.disabled = false;
 
     incTotal();
     if (result.is_correct) {

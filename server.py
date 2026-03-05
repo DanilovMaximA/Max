@@ -1037,6 +1037,17 @@ def _result_matches(parsed, correct):
     return n == correct.get('result_num') and d == correct.get('result_den')
 
 
+def _result_str(correct):
+    """Строка результата; при 1/1 добавляем ' = 1'."""
+    if 'result_num' not in correct:
+        return ''
+    rn, rd = correct['result_num'], correct['result_den']
+    s = f"{rn}/{rd}"
+    if rn == 1 and rd == 1:
+        s += " = 1"
+    return s
+
+
 def build_analysis(operation, is_correct, errors, task, correct, user, detailed=False):
     """Формирует текст разбора и alt_text для любой операции. detailed=True — развёрнутый разбор для 5 класса."""
     text = ""
@@ -1069,57 +1080,61 @@ def build_analysis(operation, is_correct, errors, task, correct, user, detailed=
         elif errors.get('result'):
             raw = correct['new_num1'] - correct['new_num2'] if operation == 'subtract' else correct['new_num1'] + correct['new_num2']
             g = gcd(abs(raw), correct['common_den'])
+            res = _result_str(correct)
             if detailed:
                 if g == 1:
-                    text = f"Разбор по шагам.\n\nШаг 3 — Действие с числителями. Дроби приведены к знаменателю {correct['common_den']}. {'Складываем' if operation == 'add' else 'Вычитаем'} числители: {correct['new_num1']} {op_sym} {correct['new_num2']} = {raw}. Знаменатель тот же: {raw}/{correct['common_den']}. НОД({raw}, {correct['common_den']}) = 1 — дробь несократима. Ответ: {correct['result_num']}/{correct['result_den']}."
-                    alt_text = f"При одинаковых знаменателях: числители {'складываем' if operation == 'add' else 'вычитаем'}, знаменатель не меняем. {correct['new_num1']}/{correct['common_den']} {op_sym} {correct['new_num2']}/{correct['common_den']} = {raw}/{correct['common_den']}. НОД = 1 — не сокращаем. Ответ: {correct['result_num']}/{correct['result_den']}."
+                    text = f"Разбор по шагам.\n\nШаг 3 — Действие с числителями. Дроби приведены к знаменателю {correct['common_den']}. {'Складываем' if operation == 'add' else 'Вычитаем'} числители: {correct['new_num1']} {op_sym} {correct['new_num2']} = {raw}. Знаменатель тот же: {raw}/{correct['common_den']}. НОД({raw}, {correct['common_den']}) = 1 — дробь несократима. Ответ: {res}."
+                    alt_text = f"При одинаковых знаменателях: числители {'складываем' if operation == 'add' else 'вычитаем'}, знаменатель не меняем. {correct['new_num1']}/{correct['common_den']} {op_sym} {correct['new_num2']}/{correct['common_den']} = {raw}/{correct['common_den']}. НОД = 1 — не сокращаем. Ответ: {res}."
                 else:
-                    text = f"Разбор по шагам.\n\nШаг 3 — Действие и сокращение. Числители: {correct['new_num1']} {op_sym} {correct['new_num2']} = {raw}. Получаем {raw}/{correct['common_den']}. Сокращаем: НОД({raw}, {correct['common_den']}) = {g}. Делим числитель и знаменатель на {g}: получается {correct['result_num']}/{correct['result_den']}. Ответ: {correct['result_num']}/{correct['result_den']}."
-                    alt_text = f"После {'сложения' if operation == 'add' else 'вычитания'} числителей: {raw}/{correct['common_den']}. Сокращаем на НОД = {g} → {correct['result_num']}/{correct['result_den']}."
+                    text = f"Разбор по шагам.\n\nШаг 3 — Действие и сокращение. Числители: {correct['new_num1']} {op_sym} {correct['new_num2']} = {raw}. Получаем {raw}/{correct['common_den']}. Сокращаем: НОД({raw}, {correct['common_den']}) = {g}. Делим числитель и знаменатель на {g}: получается {res}. Ответ: {res}."
+                    alt_text = f"После {'сложения' if operation == 'add' else 'вычитания'} числителей: {raw}/{correct['common_den']}. Сокращаем на НОД = {g} → {res}."
             elif g == 1:
-                text = f"{'Разность' if operation == 'subtract' else 'Сумма'} числителей = {raw}. НОД = 1 — значит, не сокращаем вовсе. Ответ: {correct['result_num']}/{correct['result_den']}."
+                text = f"{'Разность' if operation == 'subtract' else 'Сумма'} числителей = {raw}. НОД = 1 — значит, не сокращаем вовсе. Ответ: {res}."
                 alt_text = f"{correct['new_num1']}/{correct['common_den']} {op_sym} {correct['new_num2']}/{correct['common_den']} = {raw}/{correct['common_den']}. НОД = 1 — дробь уже несократима, не сокращаем вовсе."
             else:
-                text = f"{'Разность' if operation == 'subtract' else 'Сумма'} числителей = {raw}. Сокращаем на НОД = {g}. Ответ: {correct['result_num']}/{correct['result_den']}."
-                alt_text = f"{correct['new_num1']}/{correct['common_den']} {op_sym} {correct['new_num2']}/{correct['common_den']} = {raw}/{correct['common_den']}. Сокращаем на НОД = {g} — получается {correct['result_num']}/{correct['result_den']}."
+                text = f"{'Разность' if operation == 'subtract' else 'Сумма'} числителей = {raw}. Сокращаем на НОД = {g}. Ответ: {res}."
+                alt_text = f"{correct['new_num1']}/{correct['common_den']} {op_sym} {correct['new_num2']}/{correct['common_den']} = {raw}/{correct['common_den']}. Сокращаем на НОД = {g} — получается {res}."
     elif operation == 'multiply':
         a, b, c, d = task['num1'], task['den1'], task['num2'], task['den2']
         prod_num, prod_den = a * c, b * d
         g = gcd(prod_num, prod_den)
+        res = _result_str(correct)
         if detailed:
-            text = f"Разбор по шагам.\n\nШаг 1 — Умножение дробей. Правило: числитель на числитель, знаменатель на знаменатель. {a}/{b} × {c}/{d} = (a×c)/(b×d) = {a}×{c}/{b}×{d} = {prod_num}/{prod_den}.\n\nШаг 2 — Сокращение. НОД({prod_num}, {prod_den}) = {g}. Делим числитель и знаменатель на {g}: {prod_num} ÷ {g} = {correct['result_num']}, {prod_den} ÷ {g} = {correct['result_den']}. Ответ: {correct['result_num']}/{correct['result_den']}."
-            alt_text = f"Умножение дробей: (числитель×числитель)/(знаменатель×знаменатель). {a}/{b} × {c}/{d} = {prod_num}/{prod_den}. После сокращения на НОД = {g} получаем {correct['result_num']}/{correct['result_den']}."
+            text = f"Разбор по шагам.\n\nШаг 1 — Умножение дробей. Правило: числитель на числитель, знаменатель на знаменатель. {a}/{b} × {c}/{d} = (a×c)/(b×d) = {a}×{c}/{b}×{d} = {prod_num}/{prod_den}.\n\nШаг 2 — Сокращение. НОД({prod_num}, {prod_den}) = {g}. Делим числитель и знаменатель на {g}: {prod_num} ÷ {g} = {correct['result_num']}, {prod_den} ÷ {g} = {correct['result_den']}. Ответ: {res}."
+            alt_text = f"Умножение дробей: (числитель×числитель)/(знаменатель×знаменатель). {a}/{b} × {c}/{d} = {prod_num}/{prod_den}. После сокращения на НОД = {g} получаем {res}."
         elif g == 1:
-            text = f"Произведение дробей: ({a}×{c})/({b}×{d}) = {prod_num}/{prod_den}. НОД = 1 — не сокращаем вовсе. Ответ: {correct['result_num']}/{correct['result_den']}."
+            text = f"Произведение дробей: ({a}×{c})/({b}×{d}) = {prod_num}/{prod_den}. НОД = 1 — не сокращаем вовсе. Ответ: {res}."
             alt_text = f"{a}/{b} × {c}/{d} = {prod_num}/{prod_den}. Дробь уже несократима."
         else:
-            text = f"Произведение дробей: ({a}×{c})/({b}×{d}) = {prod_num}/{prod_den}. После сокращения на НОД = {g}: {correct['result_num']}/{correct['result_den']}."
-            alt_text = f"{a}/{b} × {c}/{d} = {prod_num}/{prod_den}. НОД({prod_num},{prod_den}) = {g}. Делим числитель и знаменатель — получается {correct['result_num']}/{correct['result_den']}."
+            text = f"Произведение дробей: ({a}×{c})/({b}×{d}) = {prod_num}/{prod_den}. После сокращения на НОД = {g}: {res}."
+            alt_text = f"{a}/{b} × {c}/{d} = {prod_num}/{prod_den}. НОД({prod_num},{prod_den}) = {g}. Делим числитель и знаменатель — получается {res}."
     elif operation == 'divide':
         a, b, c, d = task['num1'], task['den1'], task['num2'], task['den2']
         quot_num, quot_den = a * d, b * c
         g = gcd(quot_num, quot_den)
+        res = _result_str(correct)
         if detailed:
-            text = f"Разбор по шагам.\n\nШаг 1 — Деление на дробь заменяем умножением на обратную. Обратная к {c}/{d} — это {d}/{c}. Значит ({a}/{b}) ÷ ({c}/{d}) = ({a}/{b}) × ({d}/{c}) = (a×d)/(b×c) = {a}×{d}/{b}×{c} = {quot_num}/{quot_den}.\n\nШаг 2 — Сокращение. НОД({quot_num}, {quot_den}) = {g}. Делим числитель и знаменатель на {g}. Ответ: {correct['result_num']}/{correct['result_den']}."
-            alt_text = f"Правило: деление на дробь = умножение на обратную. ({a}/{b}) ÷ ({c}/{d}) = ({a}/{b}) × ({d}/{c}) = {quot_num}/{quot_den}. После сокращения: {correct['result_num']}/{correct['result_den']}."
+            text = f"Разбор по шагам.\n\nШаг 1 — Деление на дробь заменяем умножением на обратную. Обратная к {c}/{d} — это {d}/{c}. Значит ({a}/{b}) ÷ ({c}/{d}) = ({a}/{b}) × ({d}/{c}) = (a×d)/(b×c) = {a}×{d}/{b}×{c} = {quot_num}/{quot_den}.\n\nШаг 2 — Сокращение. НОД({quot_num}, {quot_den}) = {g}. Делим числитель и знаменатель на {g}. Ответ: {res}."
+            alt_text = f"Правило: деление на дробь = умножение на обратную. ({a}/{b}) ÷ ({c}/{d}) = ({a}/{b}) × ({d}/{c}) = {quot_num}/{quot_den}. После сокращения: {res}."
         elif g == 1:
             text = f"Деление на дробь = умножение на обратную: {a}/{b} × {d}/{c} = {quot_num}/{quot_den}. НОД = 1 — не сокращаем вовсе."
             alt_text = f"({a}/{b}) ÷ ({c}/{d}) = {a*d}/{b*c}. Дробь уже несократима."
         else:
-            text = f"Деление на дробь = умножение на обратную: {a}/{b} × {d}/{c} = {quot_num}/{quot_den}. Сокращаем на НОД = {g}: {correct['result_num']}/{correct['result_den']}."
-            alt_text = f"({a}/{b}) ÷ ({c}/{d}) = ({a}/{b}) × ({d}/{c}) = {quot_num}/{quot_den}. После сокращения: {correct['result_num']}/{correct['result_den']}."
+            text = f"Деление на дробь = умножение на обратную: {a}/{b} × {d}/{c} = {quot_num}/{quot_den}. Сокращаем на НОД = {g}: {res}."
+            alt_text = f"({a}/{b}) ÷ ({c}/{d}) = ({a}/{b}) × ({d}/{c}) = {quot_num}/{quot_den}. После сокращения: {res}."
     elif operation == 'power':
         num, den, n = task['num'], task['den'], task['exponent']
         res_num, res_den = num ** n, den ** n
         g = gcd(res_num, res_den)
+        res = _result_str(correct)
         if detailed:
-            text = f"Разбор по шагам.\n\nСтепень дроби: числитель и знаменатель возводим в степень отдельно. ({num}/{den})^{n} = {num}^{n}/{den}^{n} = {res_num}/{res_den}. НОД({res_num}, {res_den}) = {g}. Сокращаем: делим числитель и знаменатель на {g}. Ответ: {correct['result_num']}/{correct['result_den']}."
-            alt_text = f"Правило: (a/b)^n = a^n / b^n. ({num}/{den})^{n} = {res_num}/{res_den}. После сокращения на НОД = {g} получаем {correct['result_num']}/{correct['result_den']}."
+            text = f"Разбор по шагам.\n\nСтепень дроби: числитель и знаменатель возводим в степень отдельно. ({num}/{den})^{n} = {num}^{n}/{den}^{n} = {res_num}/{res_den}. НОД({res_num}, {res_den}) = {g}. Сокращаем: делим числитель и знаменатель на {g}. Ответ: {res}."
+            alt_text = f"Правило: (a/b)^n = a^n / b^n. ({num}/{den})^{n} = {res_num}/{res_den}. После сокращения на НОД = {g} получаем {res}."
         elif g == 1:
             text = f"({num}/{den})^{n} = {res_num}/{res_den}. НОД = 1 — не сокращаем вовсе."
             alt_text = f"Степень дроби = степень числителя и знаменателя: {num}^{n}/{den}^{n} = {res_num}/{res_den}. Дробь уже несократима."
         else:
-            text = f"({num}/{den})^{n} = {res_num}/{res_den}. Сокращаем на НОД = {g}: {correct['result_num']}/{correct['result_den']}."
+            text = f"({num}/{den})^{n} = {res_num}/{res_den}. Сокращаем на НОД = {g}: {res}."
             alt_text = f"Степень дроби = степень числителя и знаменателя: {num}^{n}/{den}^{n} = {res_num}/{res_den}. Сокращаем НОД."
     elif operation == 'compare':
         a, b, c, d = task['num1'], task['den1'], task['num2'], task['den2']
@@ -1132,12 +1147,13 @@ def build_analysis(operation, is_correct, errors, task, correct, user, detailed=
     elif operation == 'reduce':
         num, den = task['num'], task['den']
         g = gcd(num, den)
+        res = _result_str(correct)
         if detailed:
-            text = f"Разбор по шагам.\n\nСокращение дроби — деление числителя и знаменателя на одно и то же число (на их НОД). НОД({num}, {den}) = {g}. Делим: {num} ÷ {g} = {correct['result_num']}, {den} ÷ {g} = {correct['result_den']}. Итого: {num}/{den} = {correct['result_num']}/{correct['result_den']}. Дробь {correct['result_num']}/{correct['result_den']} уже несократима."
-            alt_text = f"Чтобы сократить дробь, найдите НОД числителя и знаменателя, затем разделите оба на него. НОД({num}, {den}) = {g}. {num}/{den} = {correct['result_num']}/{correct['result_den']}."
+            text = f"Разбор по шагам.\n\nСокращение дроби — деление числителя и знаменателя на одно и то же число (на их НОД). НОД({num}, {den}) = {g}. Делим: {num} ÷ {g} = {correct['result_num']}, {den} ÷ {g} = {correct['result_den']}. Итого: {num}/{den} = {res}. Дробь {res} уже несократима."
+            alt_text = f"Чтобы сократить дробь, найдите НОД числителя и знаменателя, затем разделите оба на него. НОД({num}, {den}) = {g}. {num}/{den} = {res}."
         else:
             text = f"НОД({num}, {den}) = {g}. {num}/{den} = {num//g}/{den//g}."
-            alt_text = f"Делим числитель и знаменатель на {g}: {num}÷{g}/{den}÷{g} = {correct['result_num']}/{correct['result_den']}."
+            alt_text = f"Делим числитель и знаменатель на {g}: {num}÷{g}/{den}÷{g} = {res}."
     elif operation == 'convert':
         direction = task.get('convert_direction', 'mixed_to_improper')
         if direction == 'mixed_to_improper':
@@ -1164,20 +1180,24 @@ def build_analysis(operation, is_correct, errors, task, correct, user, detailed=
         raw = num1 - num2 if op_sym == '−' else num1 + num2
         g = gcd(abs(raw), den1)
         if g == 1:
-            text = f"При одинаковых знаменателях {'вычитаем' if op_sym == '−' else 'складываем'} только числители: {num1} {op_sym} {num2} = {raw}. Знаменатель {den1} не меняем. Ответ: {correct['result_num']}/{correct['result_den']}. НОД = 1 — сокращать не нужно."
-            alt_text = f"{num1}/{den1} {op_sym} {num2}/{den1} = {raw}/{den1} = {correct['result_num']}/{correct['result_den']}."
+            res = _result_str(correct)
+            text = f"При одинаковых знаменателях {'вычитаем' if op_sym == '−' else 'складываем'} только числители: {num1} {op_sym} {num2} = {raw}. Знаменатель {den1} не меняем. Ответ: {res}. НОД = 1 — сокращать не нужно."
+            alt_text = f"{num1}/{den1} {op_sym} {num2}/{den1} = {raw}/{den1} = {res}."
         else:
-            text = f"Числители: {num1} {op_sym} {num2} = {raw}. Получаем {raw}/{den1}. Сокращаем на НОД = {g}. Ответ: {correct['result_num']}/{correct['result_den']}."
-            alt_text = f"Дроби с одинаковым знаменателем: числители {'вычитаем' if op_sym == '−' else 'складываем'}, знаменатель тот же. {raw}/{den1} после сокращения: {correct['result_num']}/{correct['result_den']}."
+            res = _result_str(correct)
+            text = f"Числители: {num1} {op_sym} {num2} = {raw}. Получаем {raw}/{den1}. Сокращаем на НОД = {g}. Ответ: {res}."
+            alt_text = f"Дроби с одинаковым знаменателем: числители {'вычитаем' if op_sym == '−' else 'складываем'}, знаменатель тот же. {raw}/{den1} после сокращения: {res}."
     elif operation == 'natural_div_fraction':
         nat, num, den = task['natural'], task['num'], task['den']
-        text = f"Деление на дробь — умножение на обратную: {nat} ÷ {num}/{den} = {nat} × {den}/{num} = {nat*den}/{num}. После сокращения: {correct['result_num']}/{correct['result_den']}."
-        alt_text = f"Правило: a ÷ (b/c) = a × (c/b). {nat} × {den}/{num} = {correct['result_num']}/{correct['result_den']}."
+        res = _result_str(correct)
+        text = f"Деление на дробь — умножение на обратную: {nat} ÷ {num}/{den} = {nat} × {den}/{num} = {nat*den}/{num}. После сокращения: {res}."
+        alt_text = f"Правило: a ÷ (b/c) = a × (c/b). {nat} × {den}/{num} = {res}."
     elif operation == 'mixed_numbers':
         direction = task.get('convert_direction', 'mixed_to_improper')
         if direction == 'mixed_to_improper':
             i, n, d = task['int_part'], task['num'], task['den']
-            text = f"Смешанное число: {i} {n}/{d} = {i}×{d}+{n} в числителе, знаменатель {d}. Ответ: {correct['result_num']}/{correct['result_den']}."
+            res = _result_str(correct)
+            text = f"Смешанное число: {i} {n}/{d} = {i}×{d}+{n} в числителе, знаменатель {d}. Ответ: {res}."
             alt_text = f"{i} {n}/{d} = ({i}×{d}+{n})/{d} = {i*d+n}/{d}."
         else:
             num, den = task['num'], task['den']
@@ -1185,14 +1205,16 @@ def build_analysis(operation, is_correct, errors, task, correct, user, detailed=
             alt_text = f"{num}/{den} = {correct['int_part']} {correct['num']}/{den}."
     elif operation == 'add_subtract_mixed':
         is_subtract = task.get('op_sym') in ('−', '-', 'subtract')
-        text = f"Смешанные числа приведены к дробям и выполнено {'вычитание' if is_subtract else 'сложение'}. Правильный ответ: {correct['result_num']}/{correct['result_den']}."
-        alt_text = f"Переведите смешанные в неправильные дроби, приведите к общему знаменателю, выполните действие. Ответ: {correct['result_num']}/{correct['result_den']}."
+        res = _result_str(correct)
+        text = f"Смешанные числа приведены к дробям и выполнено {'вычитание' if is_subtract else 'сложение'}. Правильный ответ: {res}."
+        alt_text = f"Переведите смешанные в неправильные дроби, приведите к общему знаменателю, выполните действие. Ответ: {res}."
     elif operation == 'basic_property':
         num, den = task['num'], task['den']
         target = task['target_den']
         k = target // den
-        text = f"Основное свойство дроби: числитель и знаменатель умножаем на одно и то же число. {num}/{den} = {num}×{k}/{den}×{k} = {correct['result_num']}/{correct['result_den']}."
-        alt_text = f"Чтобы получить знаменатель {target}, домножаем на {k}. {num}/{den} = {correct['result_num']}/{correct['result_den']}."
+        res = _result_str(correct)
+        text = f"Основное свойство дроби: числитель и знаменатель умножаем на одно и то же число. {num}/{den} = {num}×{k}/{den}×{k} = {res}."
+        alt_text = f"Чтобы получить знаменатель {target}, домножаем на {k}. {num}/{den} = {res}."
     elif operation == 'common_denominator':
         num1, den1 = task['num1'], task['den1']
         num2, den2 = task['num2'], task['den2']
@@ -1208,18 +1230,21 @@ def build_analysis(operation, is_correct, errors, task, correct, user, detailed=
         else:
             a, b, c, d = task['num1'], task['den1'], task['num2'], task['den2']
             op_sym = '−' if real == 'subtract' else '+'
-            text = f"Общий знаменатель {correct['common_den']}, числители после приведения: {correct['new_num1']} и {correct['new_num2']}. {'Разность' if real == 'subtract' else 'Сумма'} = {correct['result_num']}/{correct['result_den']}."
-            alt_text = f"Приведение к общему знаменателю, затем {'вычитание' if real == 'subtract' else 'сложение'} числителей. Ответ: {correct['result_num']}/{correct['result_den']}."
+            res = _result_str(correct)
+            text = f"Общий знаменатель {correct['common_den']}, числители после приведения: {correct['new_num1']} и {correct['new_num2']}. {'Разность' if real == 'subtract' else 'Сумма'} = {res}."
+            alt_text = f"Приведение к общему знаменателю, затем {'вычитание' if real == 'subtract' else 'сложение'} числителей. Ответ: {res}."
     elif operation == 'fraction_of_number':
         num, den = task['num'], task['den']
         whole = task['whole']
-        text = f"Дробь от числа: умножаем число на дробь. {whole} × {num}/{den} = {whole*num}/{den} = {correct['result_num']}/{correct['result_den']}."
-        alt_text = f"Чтобы найти {num}/{den} от {whole}: {whole} × {num}/{den} = {correct['result_num']}/{correct['result_den']}."
+        res = _result_str(correct)
+        text = f"Дробь от числа: умножаем число на дробь. {whole} × {num}/{den} = {whole*num}/{den} = {res}."
+        alt_text = f"Чтобы найти {num}/{den} от {whole}: {whole} × {num}/{den} = {res}."
     elif operation == 'whole_from_part':
         num, den = task['num'], task['den']
         part = task['part']
-        text = f"Если {num}/{den} числа = {part}, то число = {part} ÷ {num}/{den} = {part} × {den}/{num} = {correct['result_num']}/{correct['result_den']}."
-        alt_text = f"Целое = часть ÷ дробь. {part} × {den}/{num} = {correct['result_num']}/{correct['result_den']}."
+        res = _result_str(correct)
+        text = f"Если {num}/{den} числа = {part}, то число = {part} ÷ {num}/{den} = {part} × {den}/{num} = {res}."
+        alt_text = f"Целое = часть ÷ дробь. {part} × {den}/{num} = {res}."
     elif operation == 'decimal_add':
         a_str, b_str = task.get('a_str', ''), task.get('b_str', '')
         err_hint = _decimal_result_error_hint(errors)
@@ -1328,8 +1353,10 @@ def build_visualization(operation, task, correct):
 @app.route('/api/check', methods=['POST'])
 def check():
     data = request.get_json()
-    task = data['task']
-    user = data['user_answers']
+    task = data.get('task')
+    if not task:
+        return jsonify({'is_correct': False, 'errors': {}, 'analysis': {'text': 'Задача не загружена. Обновите страницу.', 'alt_text': ''}, 'visualization': {}}), 400
+    user = data.get('user_answers', {})
     operation = task.get('operation', 'add')
 
     def _to_int(v):
