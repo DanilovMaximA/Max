@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Выберите предмет — ИИ-репетитор</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/choose.css">
+</head>
+<body class="choose-page">
+    <div class="choose-wrap">
+        <div class="choose-card">
+            <div class="choose-glow" aria-hidden="true"></div>
+            <div class="choose-inner">
+                <div class="choose-content-col">
+                    <div class="choose-badge">
+                        <span class="choose-badge-dot"></span>
+                        ИИ-репетитор
+                    </div>
+                    <h1 class="choose-title">
+                        Выберите
+                        <span class="choose-title-accent">предмет</span>
+                    </h1>
+                    <div class="choose-buttons">
+                        <a href="/app" id="btn-math" class="choose-btn choose-btn-primary">
+                            Математика
+                        </a>
+                        <button type="button" id="btn-russian" class="choose-btn choose-btn-secondary" title="В разработке">
+                            Русский язык
+                        </button>
+                    </div>
+                </div>
+                <div class="choose-spline-col">
+                    <div class="choose-spline-glow"></div>
+                    <div id="spline-container" class="choose-spline-container">
+                        <div id="spline-loading" class="choose-spline-loading">
+                            <span class="choose-loader"></span>
+                            <span>Загрузка...</span>
+                        </div>
+                        <canvas id="spline-canvas" class="choose-spline-canvas"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="choose-toast hidden" role="alert">
+        В разработке
+    </div>
+
+    <script type="module" src="/static/choose.js"></script>
+    <noscript>
+        <p class="choose-noscript">Включите JavaScript для интерактивного робота.</p>
+    </noscript>
+</body>
+</html>

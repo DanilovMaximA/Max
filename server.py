@@ -203,13 +203,20 @@ def _gen_decimal_int(max_integral=99, max_decimals=3):
 @app.route('/')
 def index():
     if get_current_user():
-        return redirect('/app')
+        return redirect('/choose')
     return send_from_directory('static', 'login.html')
 
 
 @app.route('/login')
 def login_redirect():
     return redirect('/')
+
+
+@app.route('/choose')
+def choose_page():
+    if not get_current_user():
+        return redirect('/')
+    return send_from_directory('static', 'choose.html')
 
 
 @app.route('/index')

@@ -1,7 +1,7 @@
 /**
  * Страница входа/регистрации.
- * При загрузке: если пользователь уже авторизован — редирект на /app.
- * После успешного входа/регистрации — редирект на /app.
+ * При загрузке: если пользователь уже авторизован — редирект на /choose.
+ * После успешного входа/регистрации — редирект на /choose (робот → выбор предмета).
  */
 (function () {
     'use strict';
@@ -41,12 +41,12 @@
         errorEl.classList.add('hidden');
     }
 
-    // Уже авторизован — на тренажёр
+    // Уже авторизован — на выбор предмета (сервер редиректит на /choose)
     fetch('/api/me')
         .then(function (r) { return r.json(); })
         .then(function (data) {
             if (data.user) {
-                window.location.href = '/app';
+                window.location.href = '/choose';
             }
         })
         .catch(function () {});
@@ -85,7 +85,7 @@
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 if (data.ok) {
-                    window.location.href = '/app';
+                    window.location.href = '/choose';
                     return;
                 }
                 showError(data.error || 'Ошибка входа.');
