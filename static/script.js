@@ -662,18 +662,32 @@ document.addEventListener('DOMContentLoaded', () => {
             if (btnParent) btnParent.classList.add('hidden');
         }
     }
-    fetch('/api/me').then(r => r.json()).then(data => {
-        if (!data.user) {
-            window.location.href = '/';
-            return;
-        }
-        updateAuthUI(data.user);
-        return fetch('/api/gamification').then(r => r.json()).then(d => {
-            if (d.gamification) updateGamificationUI(d.gamification);
-        });
-    }).catch(() => {
-        window.location.href = '/';
-    });
+    function checkAuth(retries = 3) {
+        fetch('/api/me', { credentials: 'include' })
+            .then(r => r.json())
+            .then(data => {
+                if (!data.user) {
+                    if (retries > 0) {
+                        setTimeout(() => checkAuth(retries - 1), 1500);
+                    } else {
+                        window.location.href = '/';
+                    }
+                    return;
+                }
+                updateAuthUI(data.user);
+                return fetch('/api/gamification', { credentials: 'include' }).then(r => r.json()).then(d => {
+                    if (d.gamification) updateGamificationUI(d.gamification);
+                });
+            })
+            .catch(() => {
+                if (retries > 0) {
+                    setTimeout(() => checkAuth(retries - 1), 1500);
+                } else {
+                    window.location.href = '/';
+                }
+            });
+    }
+    checkAuth();
 
     document.getElementById('btn-logout').addEventListener('click', () => {
         fetch('/api/logout', { method: 'POST' }).then(() => {

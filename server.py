@@ -22,6 +22,8 @@ app = Flask(__name__, static_folder=_static_dir)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-in-production')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URI', 'sqlite:///matema.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Сессия на Render: куки при переходе по ссылкам
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 db.init_app(app)
 
 VALID_OPERATIONS = [
