@@ -22,10 +22,11 @@ from auth_provider import SessionAuthProvider
 _static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 app = Flask(__name__, static_folder=_static_dir)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-in-production')
-# Render: DATABASE_URL (Postgres) или DATABASE_URI; иначе SQLite (на Render /tmp доступен для записи)
+# Render: DATABASE_URL (Postgres) или DATABASE_URI; иначе SQLite
 _db_uri = os.environ.get('DATABASE_URI') or os.environ.get('DATABASE_URL')
 if not _db_uri:
-    _sqlite_path = os.path.join(os.environ.get('TMPDIR', '/tmp'), 'matema.db') if os.name != 'nt' else 'matema.db'
+    # Локально и на Render: рядом с server.py (рабочая директория доступна для записи)
+    _sqlite_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'matema.db')
     _db_uri = f'sqlite:///{_sqlite_path}'
 if _db_uri.startswith('postgres://'):
     _db_uri = _db_uri.replace('postgres://', 'postgresql://', 1)
@@ -34,6 +35,19 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Сессия на Render: куки при переходе по ссылкам
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 db.init_app(app)
+
+
+@app.route('/api/debug-db')
+def debug_db():
+    """Проверка БД (только при DEBUG_SERVER_ERROR)."""
+    if not os.environ.get('DEBUG_SERVER_ERROR'):
+        return jsonify({'ok': False, 'error': 'disabled'}), 404
+    try:
+        n = User.query.count()
+        t = Topic.query.count()
+        return jsonify({'ok': True, 'users': n, 'topics': t, 'db_uri': app.config['SQLALCHEMY_DATABASE_URI'][:50] + '...'})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e), 'type': type(e).__name__}), 500
 
 
 @app.errorhandler(Exception)
