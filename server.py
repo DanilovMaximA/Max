@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from flask import Flask, request, jsonify, send_from_directory, session, redirect
 import json
+import traceback
 import random
 import math
 import webbrowser
@@ -20,7 +21,14 @@ from auth_provider import SessionAuthProvider
 _static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 app = Flask(__name__, static_folder=_static_dir)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-in-production')
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URI', 'sqlite:///matema.db')
+# Render: DATABASE_URL (Postgres) или DATABASE_URI; иначе SQLite (на Render /tmp доступен для записи)
+_db_uri = os.environ.get('DATABASE_URI') or os.environ.get('DATABASE_URL')
+if not _db_uri:
+    _sqlite_path = os.path.join(os.environ.get('TMPDIR', '/tmp'), 'matema.db') if os.name != 'nt' else 'matema.db'
+    _db_uri = f'sqlite:///{_sqlite_path}'
+if _db_uri.startswith('postgres://'):
+    _db_uri = _db_uri.replace('postgres://', 'postgresql://', 1)
+app.config['SQLALCHEMY_DATABASE_URI'] = _db_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Сессия на Render: куки при переходе по ссылкам
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
@@ -35,6 +43,8 @@ def handle_api_exception(e):
             db.session.rollback()
         except Exception:
             pass
+        # Логируем для отладки на Render (Dashboard → Logs)
+        traceback.print_exc()
         return jsonify({
             'is_correct': False, 'errors': {},
             'analysis': {'text': 'Внутренняя ошибка сервера. Попробуйте обновить страницу.', 'alt_text': ''},
