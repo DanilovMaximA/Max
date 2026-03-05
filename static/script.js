@@ -662,16 +662,12 @@ document.addEventListener('DOMContentLoaded', () => {
             if (btnParent) btnParent.classList.add('hidden');
         }
     }
-    function checkAuth(retries = 3) {
+    function checkAuth(networkRetries = 5) {
         fetch('/api/me', { credentials: 'include' })
             .then(r => r.json())
             .then(data => {
                 if (!data.user) {
-                    if (retries > 0) {
-                        setTimeout(() => checkAuth(retries - 1), 1500);
-                    } else {
-                        window.location.href = '/';
-                    }
+                    window.location.href = '/';
                     return;
                 }
                 updateAuthUI(data.user);
@@ -680,10 +676,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             })
             .catch(() => {
-                if (retries > 0) {
-                    setTimeout(() => checkAuth(retries - 1), 1500);
-                } else {
-                    window.location.href = '/';
+                if (networkRetries > 0) {
+                    setTimeout(() => checkAuth(networkRetries - 1), 2000);
                 }
             });
     }
