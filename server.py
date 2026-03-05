@@ -321,6 +321,19 @@ def logout():
     return jsonify({'ok': True})
 
 
+@app.route('/logout', methods=['GET', 'POST'])
+def logout_redirect():
+    """Выход: очистить сессию и редирект на страницу входа."""
+    prov = _auth_provider_for_request()
+    user_id = prov.get_current_user_id()
+    if user_id:
+        ev = EventLog(user_id=user_id, event_type='logout', payload=None)
+        db.session.add(ev)
+        db.session.commit()
+    prov.clear_user()
+    return redirect('/')
+
+
 @app.route('/api/me')
 def me():
     user = get_current_user()

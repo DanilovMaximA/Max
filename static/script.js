@@ -690,9 +690,7 @@ document.addEventListener('DOMContentLoaded', () => {
     checkAuth();
 
     document.getElementById('btn-logout').addEventListener('click', () => {
-        fetch('/api/logout', { method: 'POST' }).then(() => {
-            window.location.href = '/';
-        });
+        window.location.href = '/logout';
     });
 
     const profileDropdown = document.getElementById('profile-dropdown');
