@@ -26,6 +26,23 @@ app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 db.init_app(app)
 
+
+@app.errorhandler(Exception)
+def handle_api_exception(e):
+    """Для API-маршрутов возвращать JSON вместо HTML при любой ошибке."""
+    if hasattr(request, 'path') and request.path.startswith('/api/'):
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+        return jsonify({
+            'is_correct': False, 'errors': {},
+            'analysis': {'text': 'Внутренняя ошибка сервера. Попробуйте обновить страницу.', 'alt_text': ''},
+            'visualization': {}
+        }), 500
+    raise e
+
+
 VALID_OPERATIONS = [
     'add', 'subtract', 'multiply', 'divide', 'power', 'compare', 'reduce', 'convert',
     'add_subtract_same_den', 'natural_div_fraction', 'mixed_numbers', 'add_subtract_mixed',
@@ -1350,9 +1367,16 @@ def build_visualization(operation, task, correct):
     return viz
 
 
+def _check_error_response(msg):
+    return jsonify({'is_correct': False, 'errors': {}, 'analysis': {'text': msg, 'alt_text': ''}, 'visualization': {}}), 500
+
+
 @app.route('/api/check', methods=['POST'])
 def check():
-    data = request.get_json()
+    try:
+        data = request.get_json(silent=True) or {}
+    except Exception:
+        return _check_error_response('Неверный формат запроса. Обновите страницу.')
     task = data.get('task')
     if not task:
         return jsonify({'is_correct': False, 'errors': {}, 'analysis': {'text': 'Задача не загружена. Обновите страницу.', 'alt_text': ''}, 'visualization': {}}), 400

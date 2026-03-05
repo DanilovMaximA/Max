@@ -632,9 +632,13 @@ async function checkAnswerCore() {
             credentials: 'include'
         });
         const text = await response.text();
+        if (response.status === 502 || response.status === 503) {
+            throw new Error('Сервер перезапускается. Подождите 30–60 секунд и попробуйте снова.');
+        }
         try {
             result = JSON.parse(text);
         } catch (_) {
+            console.error('Ответ сервера (не JSON):', response.status, text.slice(0, 200));
             throw new Error('Сервер вернул неверный ответ. Попробуйте обновить страницу.');
         }
     } catch (e) {
