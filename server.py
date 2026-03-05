@@ -44,11 +44,16 @@ def handle_api_exception(e):
             db.session.rollback()
         except Exception:
             pass
-        # Логируем для отладки на Render (Dashboard → Logs)
         traceback.print_exc()
+        # DEBUG_SERVER_ERROR=1 в Render → показываем ошибку в разборе (для отладки)
+        if os.environ.get('DEBUG_SERVER_ERROR'):
+            tb = traceback.format_exc()
+            text = f'Ошибка сервера (отладка): {type(e).__name__}: {e}\n\n{tb[-1500:]}'
+        else:
+            text = 'Внутренняя ошибка сервера. Попробуйте обновить страницу.'
         return jsonify({
             'is_correct': False, 'errors': {},
-            'analysis': {'text': 'Внутренняя ошибка сервера. Попробуйте обновить страницу.', 'alt_text': ''},
+            'analysis': {'text': text, 'alt_text': ''},
             'visualization': {}
         }), 500
     raise e
