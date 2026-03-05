@@ -636,21 +636,28 @@ header h1 {
     box-shadow: 0 0 16px -4px rgba(34, 211, 238, 0.2);
 }
 
-.viz-label {
-    margin: 0 0 0.35rem;
-    font-weight: 600;
-    font-size: 0.9rem;
-    color: var(--text-muted);
-}
-
-#fraction-canvas {
-    display: block;
-    max-width: 100%;
-    height: auto;
+.viz-latex {
+    margin-top: 0.75rem;
+    padding: 1rem 1.25rem;
     border-radius: 10px;
     border: 1px solid var(--border-subtle);
     background: var(--bg-dark);
-    box-shadow: inset 0 0 30px -10px rgba(0, 0, 0, 0.5);
+    box-shadow: inset 0 0 30px -10px rgba(0, 0, 0, 0.3);
+    overflow-x: auto;
+}
+
+.viz-latex:empty {
+    display: none;
+}
+
+.viz-latex-row {
+    margin: 0.5rem 0;
+    text-align: center;
+}
+
+.viz-latex-row .katex {
+    font-size: 1.35rem;
+    color: var(--text-primary);
 }
 
 /* Stats — subtle glow accent */
@@ -686,8 +693,7 @@ header h1 {
     .inputs-section input {
         min-width: 100%;
     }
-    #fraction-canvas {
-        width: 100%;
-        height: auto;
+    .viz-latex {
+        padding: 0.75rem;
     }
 }

@@ -1231,6 +1231,8 @@ def build_visualization(operation, task, correct):
     viz = {'operation': operation}
     if operation in ('add', 'subtract', 'multiply', 'divide', 'compare'):
         viz['original'] = {'num1': task['num1'], 'den1': task['den1'], 'num2': task['num2'], 'den2': task['den2']}
+    if operation == 'compare' and 'comparison' in correct:
+        viz['comparison'] = correct['comparison']
     if operation in ('add', 'subtract'):
         viz['correct_common_den'] = correct['common_den']
         viz['correct_new_nums'] = [correct['new_num1'], correct['new_num2']]
@@ -1252,7 +1254,9 @@ def build_visualization(operation, task, correct):
         real = task.get('real_operation', 'add')
         viz['operation'] = real
         viz['original'] = {'num1': task['num1'], 'den1': task['den1'], 'num2': task['num2'], 'den2': task['den2']}
-        if real != 'compare':
+        if real == 'compare' and 'comparison' in correct:
+            viz['comparison'] = correct['comparison']
+        elif real != 'compare':
             viz['correct_common_den'] = correct['common_den']
             viz['correct_new_nums'] = [correct['new_num1'], correct['new_num2']]
             viz['correct_result'] = {'num': correct['result_num'], 'den': correct['result_den']}

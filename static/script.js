@@ -411,91 +411,92 @@ function showAnalysis(analysis, visualization, errors) {
     document.getElementById('analysis').style.display = 'block';
 }
 
-function drawVisualization(viz) {
-    const canvas = document.getElementById('fraction-canvas');
-    const ctx = canvas.getContext('2d');
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const op = viz.operation || 'add';
-    const labelY = 20;
-    const circleY = 60;
-    const r = 35;
-
-    function drawCircleFraction(num, den, x, y, color) {
-        const step = (2 * Math.PI) / Math.max(den, 1);
-        const start = -Math.PI / 2;
-        ctx.strokeStyle = '#666';
-        ctx.lineWidth = 2;
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, 2 * Math.PI);
-        ctx.stroke();
-        for (let i = 0; i < den; i++) {
-            ctx.beginPath();
-            ctx.moveTo(x, y);
-            ctx.arc(x, y, r, start + i * step, start + (i + 1) * step);
-            ctx.closePath();
-            if (i < num) {
-                ctx.fillStyle = color;
-                ctx.fill();
-                ctx.strokeStyle = '#333';
-                ctx.stroke();
-            } else {
-                ctx.strokeStyle = '#ccc';
-                ctx.stroke();
-            }
-        }
+function renderLatex(container, latex) {
+    if (typeof katex !== 'undefined') {
+        katex.render(latex, container, { throwOnError: false, displayMode: true });
+    } else {
+        container.textContent = latex;
     }
+}
 
-    ctx.fillStyle = '#333';
-    ctx.font = 'bold 14px sans-serif';
+function drawVisualization(viz) {
+    const el = document.getElementById('viz-latex');
+    if (!el) return;
+    el.innerHTML = '';
+    const op = viz.operation || 'add';
+
+    function frac(n, d) { return `\\dfrac{${n}}{${d}}`; }
+    function colored(color, content) { return `\\color{${color}}{${content}}`; }
+
+    let lines = [];
 
     if ((op === 'add' || op === 'subtract') && viz.original && viz.correct_result) {
-        const sym = op === 'subtract' ? '−' : '+';
-        ctx.fillText('Исходные', 20, labelY);
-        drawCircleFraction(viz.original.num1, viz.original.den1, 50, circleY, '#4a90e2');
-        drawCircleFraction(viz.original.num2, viz.original.den2, 150, circleY, '#50c878');
-        ctx.fillText(sym, 210, circleY);
-        ctx.fillText('После приведения', 280, labelY);
+        const sym = op === 'subtract' ? '-' : '+';
+        const n1 = viz.original.num1, d1 = viz.original.den1;
+        const n2 = viz.original.num2, d2 = viz.original.den2;
+        const r = viz.correct_result;
+        lines.push(`\\text{Исходные дроби: } ${colored('#4a90e2', frac(n1, d1))} ${sym} ${colored('#50c878', frac(n2, d2))}`);
         if (viz.correct_new_nums && viz.correct_common_den) {
-            drawCircleFraction(viz.correct_new_nums[0], viz.correct_common_den, 310, circleY, '#ff8c42');
-            drawCircleFraction(viz.correct_new_nums[1], viz.correct_common_den, 410, circleY, '#9b59b6');
+            const cd = viz.correct_common_den;
+            const nn1 = viz.correct_new_nums[0], nn2 = viz.correct_new_nums[1];
+            lines.push(`\\text{Приведение: } ${colored('#ff8c42', frac(nn1, cd))} ${sym} ${colored('#9b59b6', frac(nn2, cd))}`);
         }
-        ctx.fillText('Результат', 480, labelY);
-        drawCircleFraction(viz.correct_result.num, viz.correct_result.den, 520, circleY, '#e74c3c');
-        ctx.font = '14px sans-serif';
-        ctx.fillText(`${viz.correct_result.num}/${viz.correct_result.den}`, 520, circleY + r + 18);
-    } else if ((op === 'multiply' || op === 'divide' || op === 'power' || op === 'reduce') && viz.original && viz.correct_result) {
-        ctx.fillText('Исходные', 20, labelY);
-        if (op === 'power') {
-            ctx.fillText(`(${viz.original.num1}/${viz.original.den1})^${viz.original.num2}`, 50, circleY);
-        } else if (op === 'reduce') {
-            drawCircleFraction(viz.original.num1, viz.original.den1, 80, circleY, '#4a90e2');
-            ctx.fillText(`${viz.original.num1}/${viz.original.den1}`, 80, circleY + r + 18);
-        } else {
-            drawCircleFraction(viz.original.num1, viz.original.den1, 50, circleY, '#4a90e2');
-            drawCircleFraction(viz.original.num2, viz.original.den2, 150, circleY, '#50c878');
-        }
-        ctx.fillText('Результат', 280, labelY);
-        drawCircleFraction(viz.correct_result.num, viz.correct_result.den, 350, circleY, '#e74c3c');
-        ctx.font = '14px sans-serif';
-        ctx.fillText(`${viz.correct_result.num}/${viz.correct_result.den}`, 350, circleY + r + 18);
+        lines.push(`\\text{Результат: } ${colored('#e74c3c', frac(r.num, r.den))}`);
+    } else if (op === 'multiply' && viz.original && viz.correct_result) {
+        const n1 = viz.original.num1, d1 = viz.original.den1;
+        const n2 = viz.original.num2, d2 = viz.original.den2;
+        const r = viz.correct_result;
+        lines.push(`${colored('#4a90e2', frac(n1, d1))} \\times ${colored('#50c878', frac(n2, d2))} = ${colored('#e74c3c', frac(r.num, r.den))}`);
+    } else if (op === 'divide' && viz.original && viz.correct_result) {
+        const n1 = viz.original.num1, d1 = viz.original.den1;
+        const n2 = viz.original.num2, d2 = viz.original.den2;
+        const r = viz.correct_result;
+        lines.push(`${colored('#4a90e2', frac(n1, d1))} \\div ${colored('#50c878', frac(n2, d2))} = ${colored('#4a90e2', frac(n1, d1))} \\times ${colored('#50c878', frac(d2, n2))} = ${colored('#e74c3c', frac(r.num, r.den))}`);
+    } else if (op === 'power' && viz.original && viz.correct_result) {
+        const n = viz.original.num1, d = viz.original.den1, exp = viz.original.num2;
+        const r = viz.correct_result;
+        lines.push(`\\left(${frac(n, d)}\\right)^{${exp}} = ${frac(n + '^{' + exp + '}', d + '^{' + exp + '}')} = ${colored('#e74c3c', frac(r.num, r.den))}`);
+    } else if (op === 'reduce' && viz.original && viz.correct_result) {
+        const n = viz.original.num1, d = viz.original.den1;
+        const r = viz.correct_result;
+        lines.push(`${frac(n, d)} = ${colored('#e74c3c', frac(r.num, r.den))}`);
     } else if (op === 'compare' && viz.original) {
-        ctx.fillText('Первая дробь', 50, labelY);
-        drawCircleFraction(viz.original.num1, viz.original.den1, 80, circleY, '#4a90e2');
-        ctx.fillText('Вторая дробь', 200, labelY);
-        drawCircleFraction(viz.original.num2, viz.original.den2, 230, circleY, '#50c878');
+        const n1 = viz.original.num1, d1 = viz.original.den1;
+        const n2 = viz.original.num2, d2 = viz.original.den2;
+        const comp = viz.comparison || '';
+        const sign = comp === '<' ? '\\lt' : comp === '>' ? '\\gt' : '=';
+        lines.push(`${colored('#4a90e2', frac(n1, d1))} \\; ${sign} \\; ${colored('#50c878', frac(n2, d2))}`);
     } else if (op === 'convert' && viz.task) {
-        const task = viz.task;
-        if (task.convert_direction === 'mixed_to_improper' && viz.correct_result) {
-            ctx.fillText(`Целая часть ${task.int_part} + ${task.num}/${task.den}`, 50, labelY);
-            ctx.fillText(`= ${viz.correct_result.result_num}/${viz.correct_result.result_den}`, 50, circleY + 50);
-        } else if (viz.correct_result) {
-            ctx.fillText(`${task.num}/${task.den} = ${viz.correct_result.int_part} ${viz.correct_result.num}/${viz.correct_result.den}`, 50, circleY);
+        const t = viz.task;
+        const r = viz.correct_result;
+        if (t.convert_direction === 'mixed_to_improper' && r) {
+            lines.push(`${t.int_part}\\tfrac{${t.num}}{${t.den}} = \\dfrac{${t.int_part} \\times ${t.den} + ${t.num}}{${t.den}} = ${colored('#e74c3c', frac(r.result_num, r.result_den))}`);
+        } else if (r) {
+            lines.push(`${frac(t.num, t.den)} = ${colored('#e74c3c', r.int_part + '\\tfrac{' + r.num + '}{' + r.den + '}')}`);
         }
-    } else if (viz.correct_result && typeof viz.correct_result.num === 'number' && typeof viz.correct_result.den === 'number') {
-        ctx.fillText('Правильный ответ', 20, labelY);
-        drawCircleFraction(viz.correct_result.num, viz.correct_result.den, 80, circleY, '#e74c3c');
-        ctx.font = '14px sans-serif';
-        ctx.fillText(`${viz.correct_result.num}/${viz.correct_result.den}`, 80, circleY + r + 18);
+    } else if (op && op.startsWith('decimal_')) {
+        if (viz.correct_result && viz.correct_result.result_str) {
+            lines.push(`\\text{Правильный ответ: } ${colored('#e74c3c', viz.correct_result.result_str.replace(',', '{,}'))}`);
+        }
+        if (viz.comparison) {
+            const sign = viz.comparison === '<' ? '\\lt' : viz.comparison === '>' ? '\\gt' : '=';
+            lines.push(`\\text{Правильный знак: } ${colored('#e74c3c', sign)}`);
+        }
+    } else if (op === 'common_to_decimal' && viz.correct_result) {
+        if (viz.correct_result.result_str) {
+            lines.push(`\\text{Правильный ответ: } ${colored('#e74c3c', viz.correct_result.result_str.replace(',', '{,}'))}`);
+        }
+    } else if (viz.correct_result && typeof viz.correct_result.num === 'number') {
+        lines.push(`\\text{Правильный ответ: } ${colored('#e74c3c', frac(viz.correct_result.num, viz.correct_result.den))}`);
+    }
+
+    if (lines.length === 0) return;
+
+    for (const latex of lines) {
+        const row = document.createElement('div');
+        row.className = 'viz-latex-row';
+        renderLatex(row, latex);
+        el.appendChild(row);
     }
 }
 
