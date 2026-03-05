@@ -2,6 +2,7 @@
 from flask import Flask, request, jsonify, send_from_directory, session, redirect
 import json
 import traceback
+from itsdangerous import BadSignature
 import random
 import math
 import webbrowser
@@ -280,9 +281,17 @@ def parent_page():
 
 def get_current_user():
     """Return current User from auth provider (session or future messenger)."""
-    prov = _auth_provider_for_request()
-    user_id = prov.get_current_user_id()
-    return User.query.get(user_id) if user_id else None
+    try:
+        prov = _auth_provider_for_request()
+        user_id = prov.get_current_user_id()
+        return User.query.get(user_id) if user_id else None
+    except BadSignature:
+        # Куки сессии подписаны старым SECRET_KEY (после деплоя на Render). Очищаем сессию.
+        try:
+            session.clear()
+        except Exception:
+            pass
+        return None
 
 
 def _auth_provider_for_request():
