@@ -113,6 +113,17 @@ const THEORY_GRADE5 = {
     whole_from_part: `Если известно, что дробь a/b от числа равна x, то целое = x ÷ (a/b) = x × (b/a). Пример: 2/5 числа равны 16 → число = 16 × 5/2 = 40.`
 };
 
+// Темы для «Десятичные дроби 5 класс»
+const THEORY_DECIMAL5 = {
+    common_to_decimal: `Десятичная запись дробей: если знаменатель 10, 100, 1000 и т.д., можно записать дробь в виде десятичной. Пример: 3/10 = 0,3; 47/100 = 0,47.`,
+    decimal_compare: THEORY.decimal_compare,
+    decimal_add: `Сложение десятичных дробей: записываем числа столбиком, запятая под запятой. Складываем как натуральные, запятую в ответе ставим под запятыми.`,
+    decimal_subtract: `Вычитание десятичных дробей: выравниваем числа по запятой, при необходимости дополняем нулями. Вычитаем как натуральные.`,
+    decimal_round: `Округление десятичных: смотрим на следующий разряд. Если цифра 5, 6, 7, 8, 9 — увеличиваем предыдущую на 1, если 0–4 — оставляем без изменений. Прикидка — приблизительный результат для проверки.`,
+    decimal_multiply: `Умножение десятичной дроби на натуральное число: умножаем как натуральные, затем отделяем запятой столько же знаков после запятой, сколько было в множимом. При умножении на десятичную дробь учитываем знаки после запятой в обоих множителях.`,
+    decimal_divide: `Деление десятичной дроби на натуральное число: делим как натуральные, запятую в частном ставим, когда заканчивается целая часть. При делении на десятичную дробь переносим запятую вправо в обоих числах.`,
+    decimal_to_common: THEORY.decimal_to_common
+};
 const TITLES = {
     add: 'Сложение дробей',
     subtract: 'Вычитание дробей',
@@ -142,6 +153,10 @@ function updateTheory() {
         titleEl.textContent = 'Обыкновенные дроби 5 класс';
         const el = document.getElementById('theory-content-grade5');
         if (el) el.textContent = THEORY_GRADE5[currentOperation] || THEORY[currentOperation] || '';
+    } else if (currentSection === 'decimal5') {
+        titleEl.textContent = 'Десятичные дроби 5 класс';
+        const el = document.getElementById('theory-content-decimal5');
+        if (el) el.textContent = THEORY_DECIMAL5[currentOperation] || THEORY[currentOperation] || '';
     } else {
         titleEl.textContent = 'Десятичные дроби';
         const el = document.getElementById('theory-content-decimal');
@@ -211,10 +226,13 @@ function syncSelectFromOperation() {
     const selOrd = document.getElementById('operation-select-ordinary');
     const selDec = document.getElementById('operation-select-decimal');
     const selGrade5 = document.getElementById('operation-select-grade5');
+    const selDec5 = document.getElementById('operation-select-decimal5');
     if (currentSection === 'ordinary' && selOrd) {
         selOrd.value = currentOperation;
     } else if (currentSection === 'grade5' && selGrade5) {
         selGrade5.value = currentOperation;
+    } else if (currentSection === 'decimal5' && selDec5) {
+        selDec5.value = currentOperation;
     } else if (selDec) {
         selDec.value = currentOperation;
     }
@@ -225,16 +243,20 @@ function switchSection(section) {
     const secOrd = document.getElementById('section-ordinary');
     const secDec = document.getElementById('section-decimal');
     const secGrade5 = document.getElementById('section-grade5');
+    const secDec5 = document.getElementById('section-decimal5');
     const tabOrd = document.querySelector('.tab[data-section="ordinary"]');
     const tabDec = document.querySelector('.tab[data-section="decimal"]');
     const tabGrade5 = document.querySelector('.tab[data-section="grade5"]');
+    const tabDec5 = document.querySelector('.tab[data-section="decimal5"]');
 
     secOrd.classList.add('hidden');
     secDec.classList.add('hidden');
     if (secGrade5) secGrade5.classList.add('hidden');
+    if (secDec5) secDec5.classList.add('hidden');
     if (tabOrd) { tabOrd.classList.remove('active'); tabOrd.setAttribute('aria-selected', 'false'); }
     if (tabDec) { tabDec.classList.remove('active'); tabDec.setAttribute('aria-selected', 'false'); }
     if (tabGrade5) { tabGrade5.classList.remove('active'); tabGrade5.setAttribute('aria-selected', 'false'); }
+    if (tabDec5) { tabDec5.classList.remove('active'); tabDec5.setAttribute('aria-selected', 'false'); }
 
     if (section === 'ordinary') {
         secOrd.classList.remove('hidden');
@@ -246,6 +268,12 @@ function switchSection(section) {
         if (secGrade5) secGrade5.classList.remove('hidden');
         if (tabGrade5) { tabGrade5.classList.add('active'); tabGrade5.setAttribute('aria-selected', 'true'); }
         currentOperation = document.getElementById('operation-select-grade5').value;
+        updateTheory();
+        fetchNewTask();
+    } else if (section === 'decimal5') {
+        if (secDec5) secDec5.classList.remove('hidden');
+        if (tabDec5) { tabDec5.classList.add('active'); tabDec5.setAttribute('aria-selected', 'true'); }
+        currentOperation = document.getElementById('operation-select-decimal5').value;
         updateTheory();
         fetchNewTask();
     } else {
@@ -477,7 +505,7 @@ async function checkAnswer() {
     const useAddSubtractInputs = (op === 'add' || op === 'subtract') ||
         (op === 'common_denominator') ||
         (op === 'compare_add_subtract' && currentTask && currentTask.real_operation !== 'compare');
-    const useCompareInputs = (op === 'compare') || (op === 'compare_add_subtract' && currentTask && currentTask.real_operation === 'compare');
+    const useCompareInputs = (op === 'compare') || (op === 'decimal_compare') || (op === 'compare_add_subtract' && currentTask && currentTask.real_operation === 'compare');
     const useConvertMixedInputs = (op === 'convert' || op === 'mixed_numbers') && currentTask && currentTask.convert_direction === 'improper_to_mixed';
 
     if (useAddSubtractInputs) {
@@ -656,6 +684,16 @@ document.addEventListener('DOMContentLoaded', () => {
     if (selGrade5) {
         selGrade5.addEventListener('change', (e) => {
             if (currentSection !== 'grade5') return;
+            currentOperation = e.target.value;
+            updateTheory();
+            fetchNewTask();
+        });
+    }
+
+    const selDec5 = document.getElementById('operation-select-decimal5');
+    if (selDec5) {
+        selDec5.addEventListener('change', (e) => {
+            if (currentSection !== 'decimal5') return;
             currentOperation = e.target.value;
             updateTheory();
             fetchNewTask();

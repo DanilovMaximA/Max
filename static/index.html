@@ -37,6 +37,7 @@
                 <button type="button" class="tab active" data-section="ordinary" role="tab" aria-selected="true">Обыкновенные дроби</button>
                 <button type="button" class="tab" data-section="grade5" role="tab" aria-selected="false">Обыкновенные дроби 5 класс</button>
                 <button type="button" class="tab" data-section="decimal" role="tab" aria-selected="false">Десятичные дроби</button>
+                <button type="button" class="tab" data-section="decimal5" role="tab" aria-selected="false">Десятичные дроби 5 класс</button>
             </nav>
         </header>
 
@@ -107,6 +108,28 @@
             <details class="theory">
                 <summary>Краткая теория</summary>
                 <div id="theory-content-decimal"></div>
+            </details>
+        </section>
+
+        <!-- Раздел: Десятичные дроби 5 класс -->
+        <section class="page-section hidden" id="section-decimal5" role="tabpanel">
+            <h2 class="section-title">Десятичные дроби 5 класс</h2>
+            <div class="theme-switcher">
+                <label>Действие:</label>
+                <select id="operation-select-decimal5">
+                    <option value="common_to_decimal">Десятичная запись дробей</option>
+                    <option value="decimal_compare">Сравнение десятичных дробей</option>
+                    <option value="decimal_add">Сложение десятичных дробей</option>
+                    <option value="decimal_subtract">Вычитание десятичных дробей</option>
+                    <option value="decimal_round">Округление чисел. Прикидка</option>
+                    <option value="decimal_multiply">Умножение десятичной дроби на натуральное число / другую десятичную</option>
+                    <option value="decimal_divide">Деление десятичной дроби на натуральное число / десятичную дробь</option>
+                    <option value="decimal_to_common">Связь с обыкновенными дробями</option>
+                </select>
+            </div>
+            <details class="theory">
+                <summary>Краткая теория</summary>
+                <div id="theory-content-decimal5"></div>
             </details>
         </section>
 

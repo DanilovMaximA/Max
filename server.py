@@ -952,10 +952,22 @@ def _decimal_result_error_hint(errors):
 
 
 def parse_result(s):
-    """Парсит строку вида 'num/den' или 'int num/den'. Возвращает (num, den) или (int_part, num, den) или None."""
+    """Парсит строку ответа с обыкновенной дробью.
+
+    Допускаются варианты:
+    - 'num/den'  → (num, den)
+    - 'k'        → (k, 1)  (целое число как дробь с знаменателем 1)
+
+    Возвращает (num, den) или None.
+    """
     s = (s or '').strip()
     if '/' not in s:
-        return None
+        # Разрешаем целое число как дробь со знаменателем 1 (например, 1 == 1/1).
+        try:
+            n = int(s)
+        except ValueError:
+            return None
+        return (n, 1)
     parts = s.split('/')
     if len(parts) != 2:
         return None
@@ -967,6 +979,21 @@ def parse_result(s):
         return (n, d)
     except ValueError:
         return None
+
+
+def _result_matches(parsed, correct):
+    """Сравнение ответа ученика с правильной дробью из correct.
+
+    - обычный случай: числитель и знаменатель должны совпасть;
+    - если правильный числитель 0, разрешаем любую дробь вида 0/den
+      и целое 0 (parsed = (0, 1)).
+    """
+    if not parsed:
+        return False
+    n, d = parsed
+    if correct.get('result_num') == 0 and n == 0:
+        return True
+    return n == correct.get('result_num') and d == correct.get('result_den')
 
 
 def build_analysis(operation, is_correct, errors, task, correct, user, detailed=False):
@@ -1274,7 +1301,7 @@ def check():
         err_n1 = user.get('new_num1') != correct['new_num1']
         err_n2 = user.get('new_num2') != correct['new_num2']
         parsed = parse_result(user.get('result', ''))
-        res_ok = parsed and parsed[0] == correct['result_num'] and parsed[1] == correct['result_den']
+        res_ok = _result_matches(parsed, correct)
         err_result = not res_ok
         errors = {'common_den': err_common, 'new_num1': err_n1, 'new_num2': err_n2, 'result': err_result}
         is_correct = not any(errors.values())
@@ -1282,21 +1309,21 @@ def check():
     elif operation == 'multiply':
         correct = compute_multiply(task['num1'], task['den1'], task['num2'], task['den2'])
         parsed = parse_result(user.get('result', ''))
-        res_ok = parsed and parsed[0] == correct['result_num'] and parsed[1] == correct['result_den']
+        res_ok = _result_matches(parsed, correct)
         errors = {'result': not res_ok}
         is_correct = not errors['result']
 
     elif operation == 'divide':
         correct = compute_divide(task['num1'], task['den1'], task['num2'], task['den2'])
         parsed = parse_result(user.get('result', ''))
-        res_ok = parsed and parsed[0] == correct['result_num'] and parsed[1] == correct['result_den']
+        res_ok = _result_matches(parsed, correct)
         errors = {'result': not res_ok}
         is_correct = not errors['result']
 
     elif operation == 'power':
         correct = compute_power(task['num'], task['den'], task['exponent'])
         parsed = parse_result(user.get('result', ''))
-        res_ok = parsed and parsed[0] == correct['result_num'] and parsed[1] == correct['result_den']
+        res_ok = _result_matches(parsed, correct)
         errors = {'result': not res_ok}
         is_correct = not errors['result']
 
@@ -1312,7 +1339,7 @@ def check():
     elif operation == 'reduce':
         correct = compute_reduce(task['num'], task['den'])
         parsed = parse_result(user.get('result', ''))
-        res_ok = parsed and parsed[0] == correct['result_num'] and parsed[1] == correct['result_den']
+        res_ok = _result_matches(parsed, correct)
         errors = {'result': not res_ok}
         is_correct = not errors['result']
 
@@ -1321,7 +1348,7 @@ def check():
         if direction == 'mixed_to_improper':
             correct = mixed_to_improper(task['int_part'], task['num'], task['den'])
             parsed = parse_result(user.get('result', ''))
-            res_ok = parsed and parsed[0] == correct['result_num'] and parsed[1] == correct['result_den']
+            res_ok = _result_matches(parsed, correct)
             errors = {'result': not res_ok}
         else:
             correct = improper_to_mixed(task['num'], task['den'])
@@ -1337,7 +1364,7 @@ def check():
         real_op = 'subtract' if op_sym in ('−', '-', 'subtract') else 'add'
         correct = compute_add_subtract(num1, den1, num2, den2, real_op)
         parsed = parse_result(user.get('result', ''))
-        res_ok = parsed and parsed[0] == correct['result_num'] and parsed[1] == correct['result_den']
+        res_ok = _result_matches(parsed, correct)
         errors = {'result': not res_ok}
         is_correct = res_ok
 
@@ -1347,7 +1374,7 @@ def check():
         correct['result_num'] //= g
         correct['result_den'] //= g
         parsed = parse_result(user.get('result', ''))
-        res_ok = parsed and parsed[0] == correct['result_num'] and parsed[1] == correct['result_den']
+        res_ok = _result_matches(parsed, correct)
         errors = {'result': not res_ok}
         is_correct = res_ok
 
@@ -1356,7 +1383,7 @@ def check():
         if direction == 'mixed_to_improper':
             correct = mixed_to_improper(task['int_part'], task['num'], task['den'])
             parsed = parse_result(user.get('result', ''))
-            res_ok = parsed and parsed[0] == correct['result_num'] and parsed[1] == correct['result_den']
+            res_ok = _result_matches(parsed, correct)
             errors = {'result': not res_ok}
         else:
             correct = improper_to_mixed(task['num'], task['den'])
@@ -1371,14 +1398,14 @@ def check():
         real_op = 'subtract' if task.get('op_sym') in ('−', '-', 'subtract') else 'add'
         correct = compute_add_subtract(num1, den1, num2, den2, real_op)
         parsed = parse_result(user.get('result', ''))
-        res_ok = parsed and parsed[0] == correct['result_num'] and parsed[1] == correct['result_den']
+        res_ok = _result_matches(parsed, correct)
         errors = {'result': not res_ok}
         is_correct = res_ok
 
     elif operation == 'basic_property':
         correct = {'result_num': task['num'] * (task['target_den'] // task['den']), 'result_den': task['target_den']}
         parsed = parse_result(user.get('result', ''))
-        res_ok = parsed and parsed[0] == correct['result_num'] and parsed[1] == correct['result_den']
+        res_ok = _result_matches(parsed, correct)
         errors = {'result': not res_ok}
         is_correct = res_ok
 
@@ -1410,7 +1437,7 @@ def check():
             err_n1 = user.get('new_num1') != correct['new_num1']
             err_n2 = user.get('new_num2') != correct['new_num2']
             parsed = parse_result(user.get('result', ''))
-            res_ok = parsed and parsed[0] == correct['result_num'] and parsed[1] == correct['result_den']
+            res_ok = _result_matches(parsed, correct)
             errors = {'common_den': err_common, 'new_num1': err_n1, 'new_num2': err_n2, 'result': not res_ok}
         is_correct = res_ok if real == 'compare' else (not any(errors.values()))
 
@@ -1420,7 +1447,7 @@ def check():
         correct['result_num'] //= g
         correct['result_den'] //= g
         parsed = parse_result(user.get('result', ''))
-        res_ok = parsed and parsed[0] == correct['result_num'] and parsed[1] == correct['result_den']
+        res_ok = _result_matches(parsed, correct)
         errors = {'result': not res_ok}
         is_correct = res_ok
 
@@ -1430,7 +1457,7 @@ def check():
         correct['result_num'] //= g
         correct['result_den'] //= g
         parsed = parse_result(user.get('result', ''))
-        res_ok = parsed and parsed[0] == correct['result_num'] and parsed[1] == correct['result_den']
+        res_ok = _result_matches(parsed, correct)
         errors = {'result': not res_ok}
         is_correct = res_ok
 
