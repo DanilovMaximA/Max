@@ -39,15 +39,14 @@ db.init_app(app)
 
 @app.route('/api/debug-db')
 def debug_db():
-    """Проверка БД (только при DEBUG_SERVER_ERROR)."""
-    if not os.environ.get('DEBUG_SERVER_ERROR'):
-        return jsonify({'ok': False, 'error': 'disabled'}), 404
+    """Проверка БД — возвращает ошибку при сбое (для отладки на Render)."""
     try:
         n = User.query.count()
         t = Topic.query.count()
-        return jsonify({'ok': True, 'users': n, 'topics': t, 'db_uri': app.config['SQLALCHEMY_DATABASE_URI'][:50] + '...'})
+        uri = app.config['SQLALCHEMY_DATABASE_URI']
+        return jsonify({'ok': True, 'users': n, 'topics': t, 'db': uri[:60] + '...' if len(uri) > 60 else uri})
     except Exception as e:
-        return jsonify({'ok': False, 'error': str(e), 'type': type(e).__name__}), 500
+        return jsonify({'ok': False, 'error': str(e), 'type': type(e).__name__, 'tb': traceback.format_exc()[-800:]}), 500
 
 
 @app.errorhandler(Exception)
