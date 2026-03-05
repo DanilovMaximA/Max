@@ -192,13 +192,13 @@ function showInputsForOperation(op) {
     } else if (op === 'decimal_to_common') {
         document.getElementById('inputs-single-result').classList.remove('hidden');
         if (singleInput) singleInput.placeholder = 'числитель/знаменатель, например 3/4';
-    } else if (op.startsWith('decimal_') || op === 'multiply' || op === 'divide' || op === 'power' || op === 'reduce' ||
+    } else if (op.startsWith('decimal_') || op === 'common_to_decimal' || op === 'multiply' || op === 'divide' || op === 'power' || op === 'reduce' ||
         op === 'add_subtract_same_den' || op === 'natural_div_fraction' || op === 'add_subtract_mixed' || op === 'basic_property' ||
         op === 'fraction_of_number' || op === 'whole_from_part' ||
         (op === 'convert' || op === 'mixed_numbers') && currentTask && currentTask.convert_direction === 'mixed_to_improper') {
         document.getElementById('inputs-single-result').classList.remove('hidden');
         if (singleInput) {
-            if (op.startsWith('decimal_') && op !== 'decimal_to_common') singleInput.placeholder = 'через запятую, например 12,35';
+            if ((op.startsWith('decimal_') && op !== 'decimal_to_common') || op === 'common_to_decimal') singleInput.placeholder = 'через запятую, например 0,4';
             else if (op === 'fraction_of_number' || op === 'whole_from_part') singleInput.placeholder = 'число или дробь, например 12 или 12/1';
             else singleInput.placeholder = 'например 3/4';
         }
