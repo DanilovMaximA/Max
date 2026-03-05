@@ -20,8 +20,10 @@
                                 <p class="profile-row"><span class="profile-label">Школа:</span> <span id="profile-school-val">—</span></p>
                                 <p class="profile-row"><span class="profile-label">Класс:</span> <span id="profile-class-val">—</span></p>
                                 <p class="profile-row"><span class="profile-label">Уровень:</span> <span id="profile-level-val">—</span></p>
-                                <p class="profile-row"><span class="profile-label">Звёзды:</span> <span id="profile-stars-val">0</span> ⭐</p>
+                                <p class="profile-row"><span class="profile-label">Звёзды до сундука:</span> <span id="profile-stars-val">0</span>/3 ⭐</p>
                                 <p class="profile-row"><span class="profile-label">Сундуки:</span> <span id="profile-chests-val">0</span> 🎁</p>
+                                <p class="profile-row"><span class="profile-label">Серия:</span> <span id="profile-streak-val">0</span> 🔥</p>
+                                <p class="profile-row"><span class="profile-label">Лучшая серия:</span> <span id="profile-best-val">0</span></p>
                                 <p class="profile-row"><span class="profile-label">Учитель:</span> <span id="profile-teachers-val">—</span></p>
                                 <a href="/app/profile" class="auth-btn login-btn-primary profile-edit-btn">Редактировать профиль</a>
                             </div>
@@ -186,10 +188,23 @@
             <span>Правильно: <strong id="correct">0</strong></span>
             <span>Ошибок: <strong id="wrong">0</strong></span>
             <span id="gamification-stats" class="gamification-stats hidden">
-                <span>⭐ <strong id="total-stars">0</strong></span>
-                <span>🔥 Серия: <strong id="current-streak">0</strong></span>
+                <span class="stars-display" id="stars-display">
+                    <span class="star-icon dim"></span>
+                    <span class="star-icon dim"></span>
+                    <span class="star-icon dim"></span>
+                </span>
+                <span>🔥 <strong id="current-streak">0</strong></span>
+                <span>🎁 <strong id="chests-count">0</strong></span>
             </span>
         </footer>
+
+        <div id="chest-overlay" class="chest-overlay hidden">
+            <div class="chest-animation">
+                <div class="chest-icon">🎁</div>
+                <div class="chest-text">Сундук получен!</div>
+                <div class="chest-subtext">3 звезды обменяны на сундук</div>
+            </div>
+        </div>
     </div>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js" crossorigin="anonymous"></script>

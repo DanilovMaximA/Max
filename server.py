@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from flask import Flask, request, jsonify, send_from_directory, session, redirect
+import json
 import random
 import math
 import webbrowser
@@ -75,7 +76,7 @@ def compute_add_subtract(num1, den1, num2, den2, operation):
     new_num2 = num2 * (common_den // den2)
     res_num = new_num1 - new_num2 if operation == 'subtract' else new_num1 + new_num2
     g = gcd(abs(res_num), common_den)
-    return {
+    out = {
         'common_den': common_den,
         'new_num1': new_num1,
         'new_num2': new_num2,
@@ -83,13 +84,19 @@ def compute_add_subtract(num1, den1, num2, den2, operation):
         'result_den': common_den // g,
         'operation': operation
     }
+    if g > 1:
+        out['before_reduce'] = {'num': res_num, 'den': common_den}
+    return out
 
 
 def compute_multiply(num1, den1, num2, den2):
     p_num = num1 * num2
     p_den = den1 * den2
     g = gcd(p_num, p_den)
-    return {'result_num': p_num // g, 'result_den': p_den // g}
+    out = {'result_num': p_num // g, 'result_den': p_den // g}
+    if g > 1:
+        out['before_reduce'] = {'num': p_num, 'den': p_den}
+    return out
 
 
 def compute_divide(num1, den1, num2, den2):
@@ -97,14 +104,20 @@ def compute_divide(num1, den1, num2, den2):
     p_num = num1 * den2
     p_den = den1 * num2
     g = gcd(p_num, p_den)
-    return {'result_num': p_num // g, 'result_den': p_den // g}
+    out = {'result_num': p_num // g, 'result_den': p_den // g}
+    if g > 1:
+        out['before_reduce'] = {'num': p_num, 'den': p_den}
+    return out
 
 
 def compute_power(num, den, exponent):
     res_num = num ** exponent
     res_den = den ** exponent
     g = gcd(res_num, res_den)
-    return {'result_num': res_num // g, 'result_den': res_den // g}
+    out = {'result_num': res_num // g, 'result_den': res_den // g}
+    if g > 1:
+        out['before_reduce'] = {'num': res_num, 'den': res_den}
+    return out
 
 
 def compute_compare(num1, den1, num2, den2):
@@ -260,7 +273,7 @@ def register():
     user = User(email=email, password_hash=password_hash, name=name, role=role)
     db.session.add(user)
     db.session.flush()
-    stats = UserStats(user_id=user.id)
+    stats = UserStats(user_id=user.id, total_stars=0, lifetime_stars=0, chests_available=0)
     db.session.add(stats)
     db.session.commit()
     _auth_provider_for_request().set_user(user.id)
@@ -315,7 +328,7 @@ def api_gamification():
         return jsonify({'gamification': None})
     stats = UserStats.query.filter_by(user_id=user.id).first()
     if not stats:
-        stats = UserStats(user_id=user.id)
+        stats = UserStats(user_id=user.id, total_stars=0, lifetime_stars=0, chests_available=0)
         db.session.add(stats)
         db.session.commit()
     topics_progress = []
@@ -334,6 +347,7 @@ def api_gamification():
     return jsonify({
         'gamification': {
             'total_stars': stats.total_stars,
+            'lifetime_stars': stats.lifetime_stars or 0,
             'current_streak': stats.current_streak,
             'best_streak': stats.best_streak,
             'status': stats.status,
@@ -352,7 +366,7 @@ def api_profile_get():
         return jsonify({'error': 'Unauthorized'}), 401
     stats = UserStats.query.filter_by(user_id=user.id).first()
     if not stats:
-        stats = UserStats(user_id=user.id)
+        stats = UserStats(user_id=user.id, total_stars=0, lifetime_stars=0, chests_available=0)
         db.session.add(stats)
         db.session.commit()
     from gamification import STATUS_NAMES
@@ -362,12 +376,17 @@ def api_profile_get():
         if t:
             teachers.append(t.name or t.email)
     return jsonify({
+        'name': user.name or '',
+        'email': user.email or '',
         'school': getattr(user, 'school', None) or '',
         'school_class': getattr(user, 'school_class', None) or '',
         'level': stats.status,
         'level_name': STATUS_NAMES.get(stats.status, stats.status),
         'total_stars': stats.total_stars,
+        'lifetime_stars': stats.lifetime_stars or 0,
         'chests_available': stats.chests_available,
+        'current_streak': stats.current_streak,
+        'best_streak': stats.best_streak,
         'teachers': teachers,
     })
 
@@ -1279,6 +1298,8 @@ def build_visualization(operation, task, correct):
             viz['correct_result'] = viz.get('correct_result') or {'result_str': correct['result_str']}
         if 'comparison' in correct:
             viz['comparison'] = correct['comparison']
+    if 'before_reduce' in correct:
+        viz['before_reduce'] = correct['before_reduce']
     return viz
 
 
@@ -1604,6 +1625,46 @@ def check():
 
     current_user = get_current_user()
     user_id = current_user.id if current_user else None
+
+    # Повторная проверка той же задачи: не засчитывать правильный ответ
+    def _task_params_match(a, b):
+        if a is None or b is None:
+            return a == b
+        return json.dumps(a, sort_keys=True) == json.dumps(b, sort_keys=True)
+
+    is_duplicate_correct = False
+    if is_correct and user_id:
+        dup = Attempt.query.filter_by(user_id=user_id, operation=operation, is_correct=True).all()
+        for a in dup:
+            if _task_params_match(a.task_params, task):
+                is_duplicate_correct = True
+                break
+
+    if is_duplicate_correct:
+        stats = UserStats.query.filter_by(user_id=user_id).first()
+        gamification = None
+        if stats:
+            from gamification import STATUS_NAMES
+            gamification = {
+                'total_stars': stats.total_stars,
+                'lifetime_stars': stats.lifetime_stars or 0,
+                'current_streak': stats.current_streak,
+                'best_streak': stats.best_streak,
+                'status': stats.status,
+                'status_name': STATUS_NAMES.get(stats.status, stats.status),
+                'new_chest': 0,
+                'chests_available': stats.chests_available,
+            }
+        response_data = {
+            'is_correct': True,
+            'errors': {},
+            'analysis': {'text': text, 'alt_text': alt_text},
+            'visualization': visualization,
+        }
+        if gamification:
+            response_data['gamification'] = gamification
+        return jsonify(response_data)
+
     attempt = Attempt(
         user_id=user_id,
         operation=operation,
@@ -1677,6 +1738,11 @@ def init_db():
                         conn.commit()
                     except Exception:
                         pass
+                try:
+                    conn.execute(text('ALTER TABLE user_stats ADD COLUMN lifetime_stars INTEGER DEFAULT 0'))
+                    conn.commit()
+                except Exception:
+                    pass
         except Exception:
             pass
         if Topic.query.count() == 0:

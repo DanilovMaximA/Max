@@ -1,6 +1,7 @@
 // Глобальные переменные
 let currentTask = null;
 let currentCorrect = null;
+let taskAlreadyCheckedCorrect = false;  // не засчитывать повторное нажатие «Проверить» для той же задачи
 let currentOperation = 'add';
 let currentSection = 'ordinary';
 let useAltExplanation = false;
@@ -70,9 +71,34 @@ function updateGamificationUI(g) {
         block.classList.add('hidden');
         return;
     }
-    document.getElementById('total-stars').textContent = g.total_stars;
+    const starsDisplay = document.getElementById('stars-display');
+    if (starsDisplay) {
+        const icons = starsDisplay.querySelectorAll('.star-icon');
+        const count = g.total_stars || 0;
+        icons.forEach((icon, i) => {
+            icon.classList.toggle('dim', i >= count);
+            icon.classList.toggle('lit', i < count);
+        });
+    }
     document.getElementById('current-streak').textContent = g.current_streak;
+    const chestsEl = document.getElementById('chests-count');
+    if (chestsEl) chestsEl.textContent = g.chests_available || 0;
     block.classList.remove('hidden');
+
+    if (g.new_chest && g.new_chest > 0) {
+        showChestAnimation();
+    }
+}
+
+function showChestAnimation() {
+    const overlay = document.getElementById('chest-overlay');
+    if (!overlay) return;
+    overlay.classList.remove('hidden');
+    overlay.classList.add('chest-show');
+    setTimeout(() => {
+        overlay.classList.remove('chest-show');
+        overlay.classList.add('hidden');
+    }, 3000);
 }
 function incTotal() { stats.total++; saveStats(); updateStatsDisplay(); }
 function incCorrect() { stats.correct++; saveStats(); updateStatsDisplay(); }
@@ -206,6 +232,7 @@ function showInputsForOperation(op) {
 }
 
 async function fetchNewTask() {
+    taskAlreadyCheckedCorrect = false;
     const response = await fetch(`/api/new_task?operation=${currentOperation}`);
     const data = await response.json();
     currentTask = data.task;
@@ -441,21 +468,45 @@ function drawVisualization(viz) {
             const nn1 = viz.correct_new_nums[0], nn2 = viz.correct_new_nums[1];
             lines.push(`\\text{Приведение: } ${colored('#ff8c42', frac(nn1, cd))} ${sym} ${colored('#9b59b6', frac(nn2, cd))}`);
         }
-        lines.push(`\\text{Результат: } ${colored('#e74c3c', frac(r.num, r.den))}`);
+        if (viz.before_reduce) {
+            const br = viz.before_reduce;
+            lines.push(`\\text{Действие: } ${colored('#3498db', frac(br.num, br.den))}`);
+            lines.push(`\\text{Сокращение: } ${frac(br.num, br.den)} = ${colored('#e74c3c', frac(r.num, r.den))}`);
+        } else {
+            lines.push(`\\text{Результат: } ${colored('#e74c3c', frac(r.num, r.den))}`);
+        }
     } else if (op === 'multiply' && viz.original && viz.correct_result) {
         const n1 = viz.original.num1, d1 = viz.original.den1;
         const n2 = viz.original.num2, d2 = viz.original.den2;
         const r = viz.correct_result;
-        lines.push(`${colored('#4a90e2', frac(n1, d1))} \\times ${colored('#50c878', frac(n2, d2))} = ${colored('#e74c3c', frac(r.num, r.den))}`);
+        if (viz.before_reduce) {
+            const br = viz.before_reduce;
+            lines.push(`${colored('#4a90e2', frac(n1, d1))} \\times ${colored('#50c878', frac(n2, d2))} = ${colored('#3498db', frac(br.num, br.den))}`);
+            lines.push(`\\text{Сокращение: } ${frac(br.num, br.den)} = ${colored('#e74c3c', frac(r.num, r.den))}`);
+        } else {
+            lines.push(`${colored('#4a90e2', frac(n1, d1))} \\times ${colored('#50c878', frac(n2, d2))} = ${colored('#e74c3c', frac(r.num, r.den))}`);
+        }
     } else if (op === 'divide' && viz.original && viz.correct_result) {
         const n1 = viz.original.num1, d1 = viz.original.den1;
         const n2 = viz.original.num2, d2 = viz.original.den2;
         const r = viz.correct_result;
-        lines.push(`${colored('#4a90e2', frac(n1, d1))} \\div ${colored('#50c878', frac(n2, d2))} = ${colored('#4a90e2', frac(n1, d1))} \\times ${colored('#50c878', frac(d2, n2))} = ${colored('#e74c3c', frac(r.num, r.den))}`);
+        if (viz.before_reduce) {
+            const br = viz.before_reduce;
+            lines.push(`${colored('#4a90e2', frac(n1, d1))} \\div ${colored('#50c878', frac(n2, d2))} = ${colored('#4a90e2', frac(n1, d1))} \\times ${colored('#50c878', frac(d2, n2))} = ${colored('#3498db', frac(br.num, br.den))}`);
+            lines.push(`\\text{Сокращение: } ${frac(br.num, br.den)} = ${colored('#e74c3c', frac(r.num, r.den))}`);
+        } else {
+            lines.push(`${colored('#4a90e2', frac(n1, d1))} \\div ${colored('#50c878', frac(n2, d2))} = ${colored('#4a90e2', frac(n1, d1))} \\times ${colored('#50c878', frac(d2, n2))} = ${colored('#e74c3c', frac(r.num, r.den))}`);
+        }
     } else if (op === 'power' && viz.original && viz.correct_result) {
         const n = viz.original.num1, d = viz.original.den1, exp = viz.original.num2;
         const r = viz.correct_result;
-        lines.push(`\\left(${frac(n, d)}\\right)^{${exp}} = ${frac(n + '^{' + exp + '}', d + '^{' + exp + '}')} = ${colored('#e74c3c', frac(r.num, r.den))}`);
+        if (viz.before_reduce) {
+            const br = viz.before_reduce;
+            lines.push(`\\left(${frac(n, d)}\\right)^{${exp}} = ${frac(n + '^{' + exp + '}', d + '^{' + exp + '}')} = ${colored('#3498db', frac(br.num, br.den))}`);
+            lines.push(`\\text{Сокращение: } ${frac(br.num, br.den)} = ${colored('#e74c3c', frac(r.num, r.den))}`);
+        } else {
+            lines.push(`\\left(${frac(n, d)}\\right)^{${exp}} = ${frac(n + '^{' + exp + '}', d + '^{' + exp + '}')} = ${colored('#e74c3c', frac(r.num, r.den))}`);
+        }
     } else if (op === 'reduce' && viz.original && viz.correct_result) {
         const n = viz.original.num1, d = viz.original.den1;
         const r = viz.correct_result;
@@ -501,6 +552,7 @@ function drawVisualization(viz) {
 }
 
 async function checkAnswer() {
+    if (taskAlreadyCheckedCorrect) return;  // повторное нажатие — не засчитывать, не переходить
     let userAnswers = {};
     const op = currentOperation;
     const useAddSubtractInputs = (op === 'add' || op === 'subtract') ||
@@ -540,6 +592,7 @@ async function checkAnswer() {
 
     incTotal();
     if (result.is_correct) {
+        taskAlreadyCheckedCorrect = true;
         incCorrect();
         document.getElementById('next-btn').style.display = 'inline-block';
         document.querySelectorAll('.inputs-section input, .compare-btn').forEach(el => el.classList.remove('error', 'selected', 'ok'));
@@ -641,9 +694,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('profile-school-val').textContent = data.school || '—';
                 document.getElementById('profile-class-val').textContent = data.school_class || '—';
                 document.getElementById('profile-level-val').textContent = data.level_name || data.level || '—';
-                document.getElementById('profile-stars-val').textContent = data.total_stars != null ? data.total_stars : '0';
+                document.getElementById('profile-stars-val').textContent = (data.total_stars != null ? data.total_stars : '0') + '/3';
                 document.getElementById('profile-chests-val').textContent = data.chests_available != null ? data.chests_available : '0';
                 document.getElementById('profile-teachers-val').textContent = (data.teachers && data.teachers.length) ? data.teachers.join(', ') : '—';
+                const streakEl = document.getElementById('profile-streak-val');
+                if (streakEl) streakEl.textContent = data.current_streak || '0';
+                const bestEl = document.getElementById('profile-best-val');
+                if (bestEl) bestEl.textContent = data.best_streak || '0';
             }).catch(() => {});
         });
         document.addEventListener('click', () => {

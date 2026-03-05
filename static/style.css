@@ -678,6 +678,113 @@ header h1 {
     text-shadow: 0 0 20px rgba(34, 211, 238, 0.2);
 }
 
+/* Stars display */
+.stars-display {
+    display: inline-flex;
+    gap: 0.15rem;
+    vertical-align: middle;
+}
+
+.star-icon {
+    display: inline-block;
+    width: 1.1rem;
+    height: 1.1rem;
+    font-size: 0;
+    background: radial-gradient(circle, rgba(250, 204, 21, 0.15) 0%, transparent 70%);
+    border-radius: 50%;
+    position: relative;
+}
+
+.star-icon::before {
+    content: '\2605';
+    font-size: 1.05rem;
+    line-height: 1.1rem;
+    display: block;
+    text-align: center;
+}
+
+.star-icon.dim::before {
+    color: rgba(148, 163, 184, 0.3);
+}
+
+.star-icon.lit {
+    animation: starPulse 0.4s ease-out;
+}
+
+.star-icon.lit::before {
+    color: #facc15;
+    text-shadow: 0 0 8px rgba(250, 204, 21, 0.6);
+}
+
+@keyframes starPulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.4); }
+    100% { transform: scale(1); }
+}
+
+/* Chest overlay animation */
+.chest-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+
+.chest-overlay.chest-show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.chest-animation {
+    text-align: center;
+    animation: chestAppear 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.chest-icon {
+    font-size: 5rem;
+    animation: chestShake 0.5s ease 0.6s, chestGlow 1.5s ease 0.5s infinite alternate;
+    filter: drop-shadow(0 0 20px rgba(250, 204, 21, 0.6));
+}
+
+.chest-text {
+    margin-top: 1rem;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #facc15;
+    text-shadow: 0 0 20px rgba(250, 204, 21, 0.5);
+}
+
+.chest-subtext {
+    margin-top: 0.35rem;
+    font-size: 0.95rem;
+    color: var(--text-muted);
+}
+
+@keyframes chestAppear {
+    0% { transform: scale(0.3) rotate(-10deg); opacity: 0; }
+    100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+
+@keyframes chestShake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-8px) rotate(-3deg); }
+    40% { transform: translateX(8px) rotate(3deg); }
+    60% { transform: translateX(-5px) rotate(-2deg); }
+    80% { transform: translateX(5px) rotate(2deg); }
+}
+
+@keyframes chestGlow {
+    0% { filter: drop-shadow(0 0 20px rgba(250, 204, 21, 0.4)); }
+    100% { filter: drop-shadow(0 0 40px rgba(250, 204, 21, 0.8)) drop-shadow(0 0 80px rgba(250, 204, 21, 0.3)); }
+}
+
 /* Адаптивность */
 @media (max-width: 480px) {
     body {

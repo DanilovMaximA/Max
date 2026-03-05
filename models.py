@@ -115,9 +115,10 @@ class UserStats(db.Model):
     id = Column(Integer, primary_key=True)
     user_id = Column(Integer, ForeignKey('users.id'), nullable=False, unique=True)
     total_stars = Column(Integer, default=0)
+    lifetime_stars = Column(Integer, default=0)
     current_streak = Column(Integer, default=0)
     best_streak = Column(Integer, default=0)
-    status = Column(String(64), default='concentration_qi')  # concentration_qi, base, core, embryo, god
+    status = Column(String(64), default='concentration_qi')
     chests_available = Column(Integer, default=0)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
