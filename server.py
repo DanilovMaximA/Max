@@ -37,6 +37,19 @@ app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 db.init_app(app)
 
 
+@app.route('/api/migrate')
+def run_migrate():
+    """Добавить колонку lifetime_stars в user_stats (вызвать один раз при ошибке)."""
+    try:
+        from sqlalchemy import text
+        with db.engine.connect() as conn:
+            conn.execute(text('ALTER TABLE user_stats ADD COLUMN IF NOT EXISTS lifetime_stars INTEGER DEFAULT 0'))
+            conn.commit()
+        return jsonify({'ok': True, 'msg': 'lifetime_stars added'})
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+
+
 @app.route('/api/debug-db')
 def debug_db():
     """Проверка БД — возвращает ошибку при сбое (для отладки на Render)."""
@@ -58,9 +71,7 @@ def handle_api_exception(e):
         except Exception:
             pass
         traceback.print_exc()
-        # Показываем ошибку для отладки (удалить после исправления)
-        tb = traceback.format_exc()
-        text = f'Ошибка: {type(e).__name__}: {e}\n\n{tb[-1200:]}'
+        text = 'Внутренняя ошибка сервера. Попробуйте обновить страницу.'
         return jsonify({
             'is_correct': False, 'errors': {},
             'analysis': {'text': text, 'alt_text': ''},
@@ -1835,21 +1846,26 @@ def init_db():
     """Create tables and seed topics from VALID_OPERATIONS."""
     with app.app_context():
         db.create_all()
-        # Добавить колонки профиля в users, если их ещё нет (миграция для существующих БД)
+        # Миграция: добавить колонки, если их нет (для существующих БД)
         try:
             from sqlalchemy import text
+            dialect = db.engine.dialect.name
             with db.engine.connect() as conn:
                 for col, spec in [('school', 'VARCHAR(255)'), ('school_class', 'VARCHAR(64)')]:
                     try:
                         conn.execute(text(f'ALTER TABLE users ADD COLUMN {col} {spec}'))
                         conn.commit()
                     except Exception:
-                        pass
+                        conn.rollback()
+                # lifetime_stars в user_stats (PostgreSQL: IF NOT EXISTS)
                 try:
-                    conn.execute(text('ALTER TABLE user_stats ADD COLUMN lifetime_stars INTEGER DEFAULT 0'))
+                    if dialect == 'postgresql':
+                        conn.execute(text('ALTER TABLE user_stats ADD COLUMN IF NOT EXISTS lifetime_stars INTEGER DEFAULT 0'))
+                    else:
+                        conn.execute(text('ALTER TABLE user_stats ADD COLUMN lifetime_stars INTEGER DEFAULT 0'))
                     conn.commit()
                 except Exception:
-                    pass
+                    conn.rollback()
         except Exception:
             pass
         if Topic.query.count() == 0:
