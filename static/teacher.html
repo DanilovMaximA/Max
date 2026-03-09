@@ -3,36 +3,80 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Учитель — Тренажёр дроби</title>
+    <title>Кабинет учителя — Тренажёр дроби</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Панель учителя</h1>
+            <h1>Кабинет учителя</h1>
             <div class="auth-block">
                 <a href="/app" class="auth-btn">На тренажёр</a>
             </div>
         </header>
         <p id="auth-required" class="hidden">Войдите как учитель или администратор.</p>
         <section id="teacher-content" class="hidden">
-            <h2>По классам</h2>
-            <div id="by-class-container"></div>
-            <h2>Все ученики</h2>
-            <ul id="students-list"></ul>
-            <h3>Детали ученика</h3>
-            <div id="student-detail" class="hidden">
-                <p id="detail-name"></p>
-                <p id="detail-school-class"></p>
-                <p id="detail-gamification"></p>
-                <p id="detail-errors"></p>
-                <ul id="detail-topics"></ul>
-                <p><strong>Последние попытки</strong></p>
-                <ul id="detail-attempts"></ul>
+            <nav class="teacher-tabs">
+                <button type="button" class="teacher-tab active" data-tab="class">Класс</button>
+                <button type="button" class="teacher-tab" data-tab="student">Ученик</button>
+            </nav>
+
+            <div id="tab-class" class="teacher-tab-panel">
+                <div class="teacher-cards" id="class-cards"></div>
+                <div class="teacher-row">
+                    <section class="teacher-block">
+                        <h3>Проблемные темы</h3>
+                        <ul id="problem-topics"></ul>
+                    </section>
+                    <section class="teacher-block">
+                        <h3>Топ ошибок</h3>
+                        <ul id="top-errors"></ul>
+                    </section>
+                </div>
+                <section class="teacher-block">
+                    <h3>Активность по дням</h3>
+                    <div id="activity-chart" class="teacher-chart"></div>
+                </section>
+                <section class="teacher-block">
+                    <h3>Ученики по классам</h3>
+                    <div id="by-class-container"></div>
+                </section>
+            </div>
+
+            <div id="tab-student" class="teacher-tab-panel hidden">
+                <p>Выберите ученика:</p>
+                <select id="student-select" class="teacher-student-select"></select>
+                <div id="student-dashboard" class="hidden">
+                    <h3 id="student-detail-name"></h3>
+                    <p id="student-detail-school-class" class="muted"></p>
+                    <div class="teacher-row">
+                        <section class="teacher-block">
+                            <h4>Прогресс по темам</h4>
+                            <ul id="student-topics"></ul>
+                        </section>
+                        <section class="teacher-block">
+                            <h4>Активность по дням</h4>
+                            <div id="student-activity-chart" class="teacher-chart teacher-chart-small"></div>
+                        </section>
+                    </div>
+                    <div class="teacher-row">
+                        <section class="teacher-block">
+                            <h4>Типы ошибок</h4>
+                            <ul id="student-error-types"></ul>
+                        </section>
+                        <section class="teacher-block teacher-block-wide">
+                            <h4>Примеры ошибок</h4>
+                            <ul id="student-example-errors"></ul>
+                        </section>
+                    </div>
+                </div>
             </div>
         </section>
     </div>
     <script>
+        let allStudents = [];
+        let byClass = {};
+
         fetch('/api/me').then(r => r.json()).then(data => {
             const user = data.user;
             if (!user || (user.role !== 'teacher' && user.role !== 'admin')) {
@@ -40,40 +84,31 @@
                 return;
             }
             document.getElementById('teacher-content').classList.remove('hidden');
-            return fetch('/api/teacher/students');
-        }).then(r => r && r.json()).then(data => {
-            if (!data || !data.students) return;
-            const byClass = data.by_class || {};
-            const classContainer = document.getElementById('by-class-container');
-            classContainer.innerHTML = '';
-            Object.keys(byClass).sort().forEach(cls => {
-                const section = document.createElement('div');
-                section.className = 'teacher-class-section';
-                const title = document.createElement('h4');
-                title.textContent = 'Класс: ' + cls;
-                section.appendChild(title);
-                const ul = document.createElement('ul');
-                ul.className = 'students-by-class';
-                (byClass[cls] || []).forEach(s => {
-                    const li = document.createElement('li');
-                    li.innerHTML = '<strong>' + escapeHtml(s.name || s.email) + '</strong> — ⭐ ' + s.total_stars + ' | 🔥 ' + s.current_streak + ' | тем: ' + s.progress_summary.length;
-                    li.style.cursor = 'pointer';
-                    li.onclick = () => loadStudentDetail(s.id);
-                    ul.appendChild(li);
-                });
-                section.appendChild(ul);
-                classContainer.appendChild(section);
-            });
-            const ul = document.getElementById('students-list');
-            ul.innerHTML = '';
-            data.students.forEach(s => {
-                const li = document.createElement('li');
-                li.innerHTML = '<strong>' + escapeHtml(s.name || s.email) + '</strong>' + (s.school_class ? ' (' + escapeHtml(s.school_class) + ')' : '') + ' — ⭐ ' + s.total_stars + ' | 🔥 ' + s.current_streak + ' | тем: ' + s.progress_summary.length;
-                li.style.cursor = 'pointer';
-                li.onclick = () => loadStudentDetail(s.id);
-                ul.appendChild(li);
-            });
+            return Promise.all([fetch('/api/teacher/students').then(r => r.json()), fetch('/api/teacher/class-stats').then(r => r.json())]);
+        }).then(results => {
+            if (!results || !results.length) return;
+            const studentsData = results[0];
+            const statsData = results[1];
+            allStudents = studentsData.students || [];
+            byClass = studentsData.by_class || {};
+            renderClassTab(statsData);
+            renderByClass(byClass);
+            fillStudentSelect(allStudents);
+            initTabs();
         }).catch(() => {});
+
+        function initTabs() {
+            document.querySelectorAll('.teacher-tab').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.teacher-tab').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('.teacher-tab-panel').forEach(p => p.classList.add('hidden'));
+                    btn.classList.add('active');
+                    const tab = btn.dataset.tab;
+                    const panel = document.getElementById('tab-' + tab);
+                    if (panel) panel.classList.remove('hidden');
+                });
+            });
+        }
 
         function escapeHtml(s) {
             if (s == null) return '';
@@ -82,35 +117,150 @@
             return div.innerHTML;
         }
 
+        function renderClassTab(data) {
+            const cards = document.getElementById('class-cards');
+            cards.innerHTML = `
+                <div class="teacher-card"><span class="teacher-card-value">${data.total_attempts || 0}</span><span class="teacher-card-label">Попыток всего</span></div>
+                <div class="teacher-card"><span class="teacher-card-value">${data.avg_pct || 0}%</span><span class="teacher-card-label">Средний % верных</span></div>
+                <div class="teacher-card"><span class="teacher-card-value">${data.active_7d || 0}</span><span class="teacher-card-label">Активных за 7 дней</span></div>
+                <div class="teacher-card"><span class="teacher-card-value">${data.students_count || 0}</span><span class="teacher-card-label">Учеников</span></div>
+            `;
+            const pt = document.getElementById('problem-topics');
+            pt.innerHTML = '';
+            (data.problem_topics || []).forEach(t => {
+                const li = document.createElement('li');
+                li.textContent = escapeHtml(t.name) + ' — ' + t.avg_pct + '% (попыток: ' + t.total_attempts + ')';
+                pt.appendChild(li);
+            });
+            if (!(data.problem_topics || []).length) pt.innerHTML = '<li class="muted">Нет данных или все темы выше порога</li>';
+            const te = document.getElementById('top-errors');
+            te.innerHTML = '';
+            (data.top_errors || []).forEach(e => {
+                const li = document.createElement('li');
+                li.textContent = escapeHtml(e.error_type_ru) + ' — ' + e.count;
+                te.appendChild(li);
+            });
+            if (!(data.top_errors || []).length) te.innerHTML = '<li class="muted">Нет ошибок</li>';
+            renderActivityChart(document.getElementById('activity-chart'), data.activity_by_day || []);
+        }
+
+        function renderActivityChart(container, activityByDay) {
+            container.innerHTML = '';
+            if (!activityByDay.length) { container.textContent = 'Нет данных'; return; }
+            const maxCount = Math.max(1, ...activityByDay.map(d => d.count));
+            activityByDay.forEach(d => {
+                const bar = document.createElement('div');
+                bar.className = 'teacher-chart-bar-wrap';
+                const label = document.createElement('span');
+                label.className = 'teacher-chart-label';
+                label.textContent = d.date.slice(5);
+                const fill = document.createElement('div');
+                fill.className = 'teacher-chart-bar';
+                fill.style.width = (100 * d.count / maxCount) + '%';
+                fill.title = d.date + ': ' + d.count + ' попыток';
+                bar.appendChild(label);
+                bar.appendChild(fill);
+                container.appendChild(bar);
+            });
+        }
+
+        function renderByClass(byClass) {
+            const container = document.getElementById('by-class-container');
+            container.innerHTML = '';
+            Object.keys(byClass).sort().forEach(cls => {
+                const section = document.createElement('div');
+                section.className = 'teacher-class-section';
+                const title = document.createElement('h4');
+                title.textContent = 'Класс: ' + (cls === '—' ? 'не указан' : cls);
+                section.appendChild(title);
+                const ul = document.createElement('ul');
+                ul.className = 'students-by-class';
+                (byClass[cls] || []).forEach(s => {
+                    const li = document.createElement('li');
+                    li.innerHTML = '<strong>' + escapeHtml(s.name || s.email) + '</strong> — ⭐ ' + s.total_stars + ' | 🔥 ' + s.current_streak + ' | тем: ' + (s.progress_summary ? s.progress_summary.length : 0);
+                    li.style.cursor = 'pointer';
+                    li.onclick = () => { switchToStudentTab(s.id); };
+                    ul.appendChild(li);
+                });
+                section.appendChild(ul);
+                container.appendChild(section);
+            });
+        }
+
+        function fillStudentSelect(students) {
+            const sel = document.getElementById('student-select');
+            sel.innerHTML = '<option value="">— Выберите ученика —</option>' +
+                students.map(s => '<option value="' + s.id + '">' + escapeHtml(s.name || s.email) + (s.school_class ? ' (' + escapeHtml(s.school_class) + ')' : '') + '</option>').join('');
+            sel.addEventListener('change', () => {
+                const id = sel.value ? parseInt(sel.value) : null;
+                if (id) loadStudentDetail(id);
+                else document.getElementById('student-dashboard').classList.add('hidden');
+            });
+        }
+
+        function switchToStudentTab(studentId) {
+            document.querySelector('.teacher-tab[data-tab="student"]').click();
+            document.getElementById('student-select').value = studentId;
+            loadStudentDetail(studentId);
+        }
+
         function loadStudentDetail(id) {
             fetch('/api/teacher/students/' + id).then(r => r.json()).then(data => {
-                const d = document.getElementById('student-detail');
-                d.classList.remove('hidden');
-                document.getElementById('detail-name').textContent = 'Ученик: ' + (data.student.name || data.student.email);
+                const dash = document.getElementById('student-dashboard');
+                dash.classList.remove('hidden');
+                document.getElementById('student-detail-name').textContent = data.student.name || data.student.email;
                 const sc = [data.student.school, data.student.school_class].filter(Boolean).join(', ');
-                document.getElementById('detail-school-class').textContent = sc ? 'Школа, класс: ' + sc : '';
-                const g = data.gamification;
-                document.getElementById('detail-gamification').textContent = `⭐ ${g.total_stars} | Серия: ${g.current_streak} | Лучшая: ${g.best_streak} | ${g.status_name} | Сундуков: ${g.chests_available}`;
-                const errRu = data.error_type_counts_ru || {};
-                document.getElementById('detail-errors').textContent = 'Типы ошибок: ' + (Object.keys(errRu).length ? Object.entries(errRu).map(([name, cnt]) => name + ': ' + cnt).join('; ') : 'нет данных');
-                const tUl = document.getElementById('detail-topics');
+                document.getElementById('student-detail-school-class').textContent = sc ? 'Школа, класс: ' + sc : '';
+                const tUl = document.getElementById('student-topics');
                 tUl.innerHTML = '';
                 (data.topics_progress || []).forEach(t => {
                     const li = document.createElement('li');
-                    li.textContent = (t.name || t.operation) + ': ' + t.progress_pct + '%';
+                    li.textContent = (t.name_ru || t.name || t.operation) + ': ' + t.progress_pct + '% (' + t.correct_attempts + '/' + t.total_attempts + ')';
                     tUl.appendChild(li);
                 });
-                const aUl = document.getElementById('detail-attempts');
-                aUl.innerHTML = '';
-                (data.recent_attempts || []).forEach(a => {
+                if (!(data.topics_progress || []).length) tUl.innerHTML = '<li class="muted">Нет данных</li>';
+                renderActivityChart(document.getElementById('student-activity-chart'), data.activity_by_day || []);
+                const errUl = document.getElementById('student-error-types');
+                errUl.innerHTML = '';
+                const errRu = data.error_type_counts_ru || {};
+                Object.entries(errRu).forEach(([name, cnt]) => {
                     const li = document.createElement('li');
-                    const dateStr = a.created_at ? new Date(a.created_at).toLocaleString('ru-RU') : '';
-                    const op = a.operation_ru || a.operation;
-                    const result = a.is_correct ? '✓ Верно' : '✗ Ошибка' + (a.error_type_ru ? ': ' + a.error_type_ru : '');
-                    li.textContent = op + ' — ' + result + ' (' + dateStr + ')';
-                    aUl.appendChild(li);
+                    li.textContent = name + ': ' + cnt;
+                    errUl.appendChild(li);
                 });
-            });
+                if (!Object.keys(errRu).length) errUl.innerHTML = '<li class="muted">Нет ошибок</li>';
+                const exUl = document.getElementById('student-example-errors');
+                exUl.innerHTML = '';
+                (data.example_errors || []).forEach(ex => {
+                    const li = document.createElement('li');
+                    li.className = 'example-error-item';
+                    const taskStr = formatTask(ex.task_params);
+                    const userStr = formatAnswer(ex.user_answers);
+                    const correctStr = formatAnswer(ex.correct_result);
+                    li.innerHTML = '<strong>' + escapeHtml(ex.operation_ru) + '</strong> — ' + escapeHtml(ex.error_type_ru || '') +
+                        '<br><span class="muted">Задание: ' + taskStr + '</span>' +
+                        '<br>Ответ ученика: ' + escapeHtml(userStr) + ' → Верно: ' + escapeHtml(correctStr) +
+                        (ex.created_at ? '<br><span class="muted">' + new Date(ex.created_at).toLocaleString('ru-RU') + '</span>' : '');
+                    exUl.appendChild(li);
+                });
+                if (!(data.example_errors || []).length) exUl.innerHTML = '<li class="muted">Нет примеров ошибок</li>';
+            }).catch(() => {});
+        }
+
+        function formatTask(params) {
+            if (!params) return '—';
+            if (params.num1 != null && params.den1 != null) {
+                const n2 = params.num2 != null ? ' ' + params.num2 + '/' + (params.den2 || '') : '';
+                return params.num1 + '/' + (params.den1 || '') + n2;
+            }
+            return JSON.stringify(params);
+        }
+
+        function formatAnswer(ans) {
+            if (ans == null) return '—';
+            if (typeof ans === 'object' && ans.num != null && ans.den != null) return ans.num + '/' + ans.den;
+            if (typeof ans === 'object') return JSON.stringify(ans);
+            return String(ans);
         }
     </script>
 </body>

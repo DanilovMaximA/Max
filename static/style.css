@@ -1029,6 +1029,207 @@ header h1 {
     color: var(--text-muted);
 }
 
+/* Кабинет учителя — вкладки и дашборд */
+.teacher-tabs {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    border-bottom: 1px solid var(--border-subtle);
+    padding-bottom: 0.5rem;
+}
+
+.teacher-tab {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+
+.teacher-tab:hover {
+    background: var(--accent-soft);
+    color: var(--text-primary);
+    border-color: rgba(34, 211, 238, 0.3);
+}
+
+.teacher-tab.active {
+    background: var(--glow-cyan);
+    color: var(--bg-primary);
+    border-color: var(--glow-cyan);
+}
+
+.teacher-tab-panel {
+    margin-top: 0.5rem;
+}
+
+.teacher-tab-panel.hidden {
+    display: none;
+}
+
+.teacher-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.teacher-card {
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+    text-align: center;
+    box-shadow: 0 0 20px -8px rgba(0, 0, 0, 0.1);
+}
+
+.teacher-card-value {
+    display: block;
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--glow-cyan);
+    margin-bottom: 0.25rem;
+}
+
+.teacher-card-label {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+}
+
+.teacher-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.25rem;
+    margin-bottom: 1.25rem;
+}
+
+@media (max-width: 700px) {
+    .teacher-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+.teacher-block {
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    background: var(--bg-elevated);
+    border: 1px solid var(--border-subtle);
+}
+
+.teacher-block h3,
+.teacher-block h4 {
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--glow-cyan);
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.teacher-block ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.teacher-block ul li {
+    padding: 0.4rem 0;
+    font-size: 0.9rem;
+    color: var(--text-secondary);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.teacher-block ul li:last-child {
+    border-bottom: none;
+}
+
+.teacher-block ul li.muted {
+    color: var(--text-muted);
+    font-style: italic;
+}
+
+.teacher-block-wide {
+    grid-column: 1 / -1;
+}
+
+.teacher-chart {
+    display: flex;
+    align-items: flex-end;
+    gap: 4px;
+    min-height: 120px;
+    padding: 0.5rem 0;
+}
+
+.teacher-chart-small {
+    min-height: 80px;
+}
+
+.teacher-chart-bar-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.teacher-chart-label {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+}
+
+.teacher-chart-bar {
+    height: 24px;
+    min-width: 4px;
+    background: linear-gradient(180deg, var(--glow-cyan), rgba(34, 211, 238, 0.5));
+    border-radius: 4px 4px 0 0;
+    transition: width 0.2s;
+}
+
+.teacher-chart-small .teacher-chart-bar {
+    height: 16px;
+}
+
+.teacher-student-select {
+    width: 100%;
+    max-width: 320px;
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 1rem;
+    border-radius: 8px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    font-size: 0.95rem;
+}
+
+#student-dashboard {
+    margin-top: 1rem;
+}
+
+#student-dashboard .muted {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.example-error-item {
+    padding: 0.75rem 0 !important;
+    border-bottom: 1px solid var(--border-subtle);
+    font-size: 0.85rem;
+}
+
+.example-error-item br {
+    display: block;
+    content: '';
+    margin-top: 0.25rem;
+}
+
+.muted {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
 /* Адаптивность */
 @media (max-width: 480px) {
     body {

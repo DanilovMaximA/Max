@@ -12,6 +12,7 @@ import os
 import re
 from decimal import Decimal, ROUND_HALF_UP
 import bcrypt
+from datetime import datetime, timedelta
 
 from models import db, User, Topic, Attempt, ErrorLabel, UserTopicProgress, EventLog, UserStats, UserReward, UserStudentLink, ROLE_STUDENT, ROLE_TEACHER, ROLE_PARENT, ROLE_ADMIN, ROLES
 from error_detector import detect_error_type, get_error_type_name_ru
@@ -594,6 +595,89 @@ def api_teacher_students():
     return jsonify({'students': out, 'by_class': by_class})
 
 
+@app.route('/api/teacher/class-stats')
+@require_role(ROLE_TEACHER, ROLE_ADMIN)
+def api_teacher_class_stats():
+    """Агрегированная статистика по классу: карточки, проблемные темы, топ ошибок, активность по дням."""
+    user = get_current_user()
+    if user.role == ROLE_ADMIN:
+        student_ids = [u.id for u in User.query.filter_by(role=ROLE_STUDENT).all()]
+    else:
+        links = UserStudentLink.query.filter_by(teacher_id=user.id).all()
+        student_ids = [l.student_id for l in links]
+    if not student_ids:
+        return jsonify({
+            'students_count': 0,
+            'total_attempts': 0,
+            'avg_pct': 0,
+            'active_7d': 0,
+            'problem_topics': [],
+            'top_errors': [],
+            'activity_by_day': [],
+        })
+    now = datetime.utcnow()
+    since_7d = now - timedelta(days=7)
+    since_14d = now - timedelta(days=14)
+    # Все попытки учеников
+    attempts = Attempt.query.filter(Attempt.user_id.in_(student_ids)).all()
+    total_attempts = len(attempts)
+    correct_count = sum(1 for a in attempts if a.is_correct)
+    avg_pct = round(100 * correct_count / total_attempts) if total_attempts else 0
+    active_7d = len(set(a.user_id for a in attempts if a.created_at and a.created_at >= since_7d))
+    # Активность по дням (последние 14 дней)
+    day_counts = {}
+    for a in attempts:
+        if a.created_at and a.created_at >= since_14d:
+            d = a.created_at.date().isoformat()
+            day_counts[d] = day_counts.get(d, 0) + 1
+    activity_by_day = [{'date': d, 'count': day_counts.get(d, 0)} for d in
+                       [(now - timedelta(days=i)).date().isoformat() for i in range(13, -1, -1)]]
+    # Проблемные темы: средний % по теме < 60
+    topic_totals = {}
+    topic_correct = {}
+    for p in UserTopicProgress.query.filter(UserTopicProgress.user_id.in_(student_ids)).all():
+        topic_totals[p.topic_id] = topic_totals.get(p.topic_id, 0) + p.total_attempts
+        topic_correct[p.topic_id] = topic_correct.get(p.topic_id, 0) + p.correct_attempts
+    problem_topics = []
+    for tid, total in topic_totals.items():
+        if total < 3:
+            continue
+        pct = round(100 * topic_correct.get(tid, 0) / total)
+        if pct < 60:
+            t = Topic.query.get(tid)
+            problem_topics.append({
+                'topic_id': tid,
+                'name': OPERATION_TITLES_RU.get(t.operation, t.operation) if t else str(tid),
+                'avg_pct': pct,
+                'total_attempts': total,
+            })
+    problem_topics.sort(key=lambda x: x['avg_pct'])
+    # Топ ошибок по типам
+    error_counts = {}
+    for a in attempts:
+        if not a.is_correct:
+            code = None
+            if a.error_label and a.error_label.error_type:
+                code = a.error_label.error_type
+            elif a.errors:
+                det = detect_error_type(a.operation, a.errors)
+                if det:
+                    code = det['error_type']
+            if code:
+                error_counts[code] = error_counts.get(code, 0) + 1
+    top_errors = [{'error_type': code, 'error_type_ru': get_error_type_name_ru(code), 'count': c}
+                  for code, c in sorted(error_counts.items(), key=lambda x: -x[1])[:15]]
+    return jsonify({
+        'students_count': len(student_ids),
+        'total_attempts': total_attempts,
+        'avg_pct': avg_pct,
+        'active_7d': active_7d,
+        'problem_topics': problem_topics,
+        'top_errors': top_errors,
+        'activity_by_day': activity_by_day,
+    })
+
+
 @app.route('/api/teacher/students/<int:student_id>')
 @require_role(ROLE_TEACHER, ROLE_ADMIN)
 def api_teacher_student_detail(student_id):
@@ -614,6 +698,7 @@ def api_teacher_student_detail(student_id):
         topics_progress.append({
             'operation': topic.operation if topic else None,
             'name': topic.name if topic else None,
+            'name_ru': OPERATION_TITLES_RU.get(topic.operation, topic.operation) if topic else None,
             'total_attempts': p.total_attempts,
             'correct_attempts': p.correct_attempts,
             'progress_pct': round(100 * p.correct_attempts / max(1, p.total_attempts)),
@@ -651,6 +736,36 @@ def api_teacher_student_detail(student_id):
             'error_type_ru': err_ru,
             'created_at': a.created_at.isoformat() if a.created_at else None,
         })
+    # Активность по дням (последние 14 дней)
+    now = datetime.utcnow()
+    since_14d = now - timedelta(days=14)
+    day_counts = {}
+    for a in attempts:
+        if a.created_at and a.created_at >= since_14d:
+            d = a.created_at.date().isoformat()
+            day_counts[d] = day_counts.get(d, 0) + 1
+    activity_by_day = [{'date': d, 'count': day_counts.get(d, 0)} for d in
+                       [(now - timedelta(days=i)).date().isoformat() for i in range(13, -1, -1)]]
+    # Примеры ошибок: последние неудачные попытки с задачей и ответом
+    example_errors = []
+    for a in attempts:
+        if not a.is_correct and len(example_errors) < 10:
+            op_ru = OPERATION_TITLES_RU.get(a.operation, a.operation)
+            err_ru = None
+            if a.error_label and a.error_label.error_type:
+                err_ru = get_error_type_name_ru(a.error_label.error_type)
+            elif a.errors:
+                det = detect_error_type(a.operation, a.errors)
+                if det:
+                    err_ru = get_error_type_name_ru(det['error_type'])
+            example_errors.append({
+                'operation_ru': op_ru,
+                'error_type_ru': err_ru or 'Ошибка в ответе',
+                'task_params': a.task_params,
+                'user_answers': a.user_answers,
+                'correct_result': a.correct_result,
+                'created_at': a.created_at.isoformat() if a.created_at else None,
+            })
     from gamification import STATUS_NAMES
     return jsonify({
         'student': {'id': student.id, 'email': student.email, 'name': student.name, 'school': getattr(student, 'school', None) or '', 'school_class': getattr(student, 'school_class', None) or ''},
@@ -666,6 +781,8 @@ def api_teacher_student_detail(student_id):
         'recent_attempts': recent_with_ru,
         'error_type_counts': error_counts_by_code,
         'error_type_counts_ru': error_type_counts_ru,
+        'activity_by_day': activity_by_day,
+        'example_errors': example_errors,
     })
 
 
