@@ -4,7 +4,7 @@
 # Start Command: gunicorn server:app
 # ВАЖНО: В Render Dashboard → Environment задайте SECRET_KEY вручную (случайная строка с https://randomkeygen.com/).
 # Не используйте generateValue — иначе после каждого деплоя сессии сбрасываются и возникает ошибка проверки.
-# Для PostgreSQL: в Environment добавьте DATABASE_URL = Internal Database URL из вашего Postgres (matema-db). Локально без DATABASE_URL используется SQLite.
+# В Render Dashboard → Environment задайте SECRET_KEY и DATABASE_URL (Internal Database URL вашего Postgres).
 
 services:
   - type: web

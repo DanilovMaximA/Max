@@ -23,12 +23,10 @@ from auth_provider import SessionAuthProvider
 _static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 app = Flask(__name__, static_folder=_static_dir)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-in-production')
-# Render: DATABASE_URL (Postgres) или DATABASE_URI; иначе SQLite
+# БД: обязательны DATABASE_URL или DATABASE_URI (PostgreSQL)
 _db_uri = os.environ.get('DATABASE_URI') or os.environ.get('DATABASE_URL')
 if not _db_uri:
-    # Локально и на Render: рядом с server.py (рабочая директория доступна для записи)
-    _sqlite_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'matema.db')
-    _db_uri = f'sqlite:///{_sqlite_path}'
+    raise SystemExit('Задайте DATABASE_URL (или DATABASE_URI) — подключение к PostgreSQL. Локально: создайте БД и укажите postgresql://user:pass@host/dbname')
 if _db_uri.startswith('postgres://'):
     _db_uri = _db_uri.replace('postgres://', 'postgresql://', 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = _db_uri
@@ -1952,10 +1950,8 @@ if __name__ == '__main__':
     threading.Timer(1.0, open_browser).start()
     app.run(debug=True, port=5000)
 else:
-    # Gunicorn (Render): всегда инициализируем БД в фоне — иначе воркер блокируется и Render не видит открытый порт
+    # Gunicorn (Render): инициализацию БД — в фоне, чтобы воркер сразу слушал порт
     _db_init_in_background = True
-    if 'sqlite' in _db_uri:
-        _db_ready_event.set()  # SQLite быстрый — не показывать 503
     def _init_db_thread():
         try:
             init_db()
