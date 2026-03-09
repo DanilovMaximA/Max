@@ -1952,16 +1952,15 @@ if __name__ == '__main__':
     threading.Timer(1.0, open_browser).start()
     app.run(debug=True, port=5000)
 else:
-    # Gunicorn (Render): SQLite инициализируем сразу (быстро); Postgres — в фоне, чтобы воркер не таймаутился
+    # Gunicorn (Render): всегда инициализируем БД в фоне — иначе воркер блокируется и Render не видит открытый порт
+    _db_init_in_background = True
     if 'sqlite' in _db_uri:
-        init_db()
-    else:
-        _db_init_in_background = True
-        def _init_db_thread():
-            try:
-                init_db()
-            except Exception:
-                traceback.print_exc()
-            finally:
-                _db_ready_event.set()
-        threading.Thread(target=_init_db_thread, daemon=True).start()
+        _db_ready_event.set()  # SQLite быстрый — не показывать 503
+    def _init_db_thread():
+        try:
+            init_db()
+        except Exception:
+            traceback.print_exc()
+        finally:
+            _db_ready_event.set()
+    threading.Thread(target=_init_db_thread, daemon=True).start()
