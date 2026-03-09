@@ -240,9 +240,9 @@
                 (data.example_errors || []).forEach(ex => {
                     const li = document.createElement('li');
                     li.className = 'example-error-item';
-                    const taskStr = formatTask(ex.task_params);
-                    const userStr = formatAnswer(ex.user_answers);
-                    const correctStr = formatAnswer(ex.correct_result);
+                    const taskStr = formatTask(ex.task_params, ex.operation);
+                    const userStr = formatStudentAnswer(ex.user_answers);
+                    const correctStr = formatCorrectResult(ex.correct_result);
                     li.innerHTML =
                         '<strong>Действие:</strong> ' + escapeHtml(ex.operation_ru || '—') + '<br>' +
                         '<strong>Задание:</strong> ' + taskStr + '<br>' +
@@ -255,13 +255,32 @@
             }).catch(() => {});
         }
 
-        function formatTask(params) {
+        function formatTask(params, operation) {
             if (!params) return '—';
+            const signs = { add: '+', subtract: '−', multiply: '×', divide: '÷', compare: '?', power: '^', reduce: '', convert: '' };
+            const sign = (operation && signs[operation]) ? ' ' + signs[operation] + ' ' : ' ';
             if (params.num1 != null && params.den1 != null) {
-                const n2 = params.num2 != null ? ' ' + params.num2 + '/' + (params.den2 || '') : '';
+                const n2 = params.num2 != null ? sign + params.num2 + '/' + (params.den2 || '') : '';
                 return params.num1 + '/' + (params.den1 || '') + n2;
             }
             return JSON.stringify(params);
+        }
+
+        function formatCorrectResult(obj) {
+            if (obj == null) return '—';
+            if (typeof obj !== 'object') return String(obj);
+            if (obj.result_num != null && obj.result_den != null) return obj.result_num + '/' + obj.result_den;
+            if (obj.result != null) return String(obj.result);
+            if (obj.num != null && obj.den != null) return obj.num + '/' + obj.den;
+            return JSON.stringify(obj);
+        }
+
+        function formatStudentAnswer(ans) {
+            if (ans == null) return '—';
+            if (typeof ans === 'object' && ans.result !== undefined) return String(ans.result);
+            if (typeof ans === 'object' && ans.num != null && ans.den != null) return ans.num + '/' + ans.den;
+            if (typeof ans === 'object') return JSON.stringify(ans);
+            return String(ans);
         }
 
         function formatAnswer(ans) {

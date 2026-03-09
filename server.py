@@ -768,6 +768,7 @@ def api_teacher_student_detail(student_id):
                 if det:
                     err_ru = get_error_type_name_ru(det['error_type'])
             example_errors.append({
+                'operation': a.operation,
                 'operation_ru': op_ru,
                 'error_type_ru': err_ru or 'Ошибка в ответе',
                 'task_params': a.task_params,
