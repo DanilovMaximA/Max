@@ -246,15 +246,24 @@
             const row = document.querySelector(`.teacher-select[data-id="${studentId}"]`)?.closest('tr');
             if (!row) return;
             const select = row.querySelector('.teacher-select');
-            const teacherId = select.value ? parseInt(select.value) : null;
+            const teacherId = select.value ? parseInt(select.value, 10) : null;
             if (!teacherId) return;
             fetch(`/api/admin/users/${studentId}/teacher`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
                 body: JSON.stringify({ teacher_id: teacherId })
-            }).then(r => r.json()).then(() => fetch('/api/admin/users').then(r => r.json())).then(data => {
-                allUsers = data.users || [];
+            }).then(r => r.json()).then(data => {
+                if (data.error) {
+                    alert('Не удалось назначить учителя: ' + (data.error || ''));
+                    return null;
+                }
+                return Promise.all([fetch('/api/admin/users').then(r => r.json()), fetch('/api/admin/teachers').then(r => r.json())]);
+            }).then(results => {
+                if (!results || !results.length) return;
+                allUsers = results[0].users || [];
+                teachers = results[1].teachers || [];
+                renderTeachersSection();
                 renderUsers();
             }).catch(() => {});
         }

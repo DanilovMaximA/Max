@@ -987,10 +987,20 @@ def api_admin_user_teacher(user_id):
         UserStudentLink.query.filter_by(student_id=user_id).filter(UserStudentLink.teacher_id.isnot(None)).delete()
         db.session.commit()
         return jsonify({'ok': True, 'teachers': []})
-    data = request.get_json() or {}
+    data = request.get_json(silent=True)
+    if not data and request.get_data():
+        try:
+            data = json.loads(request.get_data(as_text=True))
+        except Exception:
+            data = {}
+    data = data or {}
     teacher_id = data.get('teacher_id')
-    if not teacher_id:
+    if teacher_id is None:
         return jsonify({'error': 'teacher_id required'}), 400
+    try:
+        teacher_id = int(teacher_id)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'teacher_id must be a number'}), 400
     teacher = User.query.get(teacher_id)
     if not teacher or teacher.role not in (ROLE_TEACHER, ROLE_ADMIN):
         return jsonify({'error': 'Teacher not found'}), 404
@@ -1015,10 +1025,20 @@ def api_admin_user_parent(user_id):
         UserStudentLink.query.filter_by(student_id=user_id).filter(UserStudentLink.parent_id.isnot(None)).delete()
         db.session.commit()
         return jsonify({'ok': True, 'parents': []})
-    data = request.get_json() or {}
+    data = request.get_json(silent=True)
+    if not data and request.get_data():
+        try:
+            data = json.loads(request.get_data(as_text=True))
+        except Exception:
+            data = {}
+    data = data or {}
     parent_id = data.get('parent_id')
-    if not parent_id:
+    if parent_id is None:
         return jsonify({'error': 'parent_id required'}), 400
+    try:
+        parent_id = int(parent_id)
+    except (TypeError, ValueError):
+        return jsonify({'error': 'parent_id must be a number'}), 400
     parent = User.query.get(parent_id)
     if not parent:
         return jsonify({'error': 'User not found'}), 404
