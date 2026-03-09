@@ -1,17 +1,16 @@
 # Деплой на Render.com (бесплатный тариф)
 # Подключите репозиторий GitHub в Render → New Web Service → укажите репозиторий.
 # Build Command: pip install -r requirements.txt
-# Start Command: gunicorn server:app
-# ВАЖНО: В Render Dashboard → Environment задайте SECRET_KEY вручную (случайная строка с https://randomkeygen.com/).
-# Не используйте generateValue — иначе после каждого деплоя сессии сбрасываются и возникает ошибка проверки.
+# Start Command: gunicorn server:app -b 0.0.0.0:$PORT
 # В Render Dashboard → Environment задайте SECRET_KEY и DATABASE_URL (Internal Database URL вашего Postgres).
+# В Render Dashboard → Settings → Health Check Path укажите /health — проверка без обращения к БД.
 
 services:
   - type: web
     name: matema
     runtime: python
     buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn server:app
+    startCommand: gunicorn server:app -b 0.0.0.0:$PORT
     envVars:
       - key: SECRET_KEY
         sync: false
