@@ -100,13 +100,25 @@
                 const sign = signs[op] || '+';
                 return params.a_str + ' ' + sign + ' ' + params.b_str;
             }
+            if (op === 'common_to_decimal' && params.num != null && params.den != null) return params.num + '/' + params.den;
+            if (op === 'decimal_to_common' && params.decimal_str != null) return params.decimal_str;
+            if (op === 'decimal_round' && params.decimal_str != null) return params.to_places != null ? params.decimal_str + ' (до ' + params.to_places + ' зн.)' : params.decimal_str;
+            if (op === 'natural_div_fraction' && params.natural != null && params.num != null && params.den != null) return params.natural + ' ÷ ' + params.num + '/' + params.den;
+            if (op === 'fraction_of_number' && params.num != null && params.den != null && params.whole != null) return params.num + '/' + params.den + ' от ' + params.whole;
+            if (op === 'whole_from_part' && params.num != null && params.den != null && params.part != null) return 'часть ' + params.part + ', дробь ' + params.num + '/' + params.den;
+            if ((op === 'basic_property' || op === 'common_denominator') && params.num != null && params.den != null) {
+                const n2 = params.num2 != null ? ' и ' + params.num2 + '/' + (params.den2 || '') : '';
+                const target = params.target_den != null ? ' → зн. ' + params.target_den : '';
+                return params.num + '/' + params.den + n2 + target;
+            }
             if (op === 'mixed_numbers' && params.num != null && params.den != null) return params.num + '/' + params.den + (params.convert_direction === 'improper_to_mixed' ? ' → смешанное число' : '');
             if (op === 'reduce' && params.num != null && params.den != null) return params.num + '/' + params.den;
             if (params.num1 != null && params.den1 != null) {
-                const sign = (op && signs[op]) ? ' ' + (signs[op] || ' ') + ' ' : ' ';
+                const sign = params.op_sym != null ? ' ' + params.op_sym + ' ' : (op && signs[op]) ? ' ' + (signs[op] || ' ') + ' ' : ' ';
                 const n2 = params.num2 != null ? sign + params.num2 + '/' + (params.den2 || '') : '';
                 return params.num1 + '/' + (params.den1 || '') + n2;
             }
+            if (params.num != null && params.den != null) return params.num + '/' + params.den;
             return JSON.stringify(params);
         }
 
