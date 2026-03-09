@@ -242,7 +242,7 @@
                     li.className = 'example-error-item';
                     const taskStr = formatTask(ex.task_params, ex.operation);
                     const userStr = formatStudentAnswer(ex.user_answers);
-                    const correctStr = formatCorrectResult(ex.correct_result);
+                    const correctStr = formatCorrectResult(ex.correct_result, ex.operation);
                     li.innerHTML =
                         '<strong>Действие:</strong> ' + escapeHtml(ex.operation_ru || '—') + '<br>' +
                         '<strong>Задание:</strong> ' + taskStr + '<br>' +
@@ -265,12 +265,12 @@
                 const sign = signs[op] || '+';
                 return params.a_str + ' ' + sign + ' ' + params.b_str;
             }
-            // Смешанные числа: improper_to_mixed — одна дробь num/den; mixed_to_improper — int_part и num/den
+            // Смешанные числа: improper_to_mixed — одна дробь и подпись; mixed_to_improper — int_part и num/den
             if (op === 'mixed_numbers') {
                 if (params.convert_direction === 'improper_to_mixed' && params.num != null && params.den != null)
-                    return params.num + '/' + params.den;
+                    return params.num + '/' + params.den + ' → смешанное число';
                 if (params.convert_direction === 'mixed_to_improper' && params.int_part != null && params.num != null && params.den != null)
-                    return params.int_part + ' ' + params.num + '/' + params.den;
+                    return params.int_part + ' ' + params.num + '/' + params.den + ' → неправильная дробь';
                 if (params.num != null && params.den != null) return params.num + '/' + params.den;
             }
             // Сокращение дробей: одна дробь num/den
@@ -285,9 +285,16 @@
             return JSON.stringify(params);
         }
 
-        function formatCorrectResult(obj) {
+        function formatCorrectResult(obj, operation) {
             if (obj == null) return '—';
             if (typeof obj !== 'object') return String(obj);
+            // Десятичные: приоритет result_str (51,85), иначе дробь
+            if (obj.result_str != null && obj.result_str !== '') return obj.result_str;
+            // Смешанное число (improper_to_mixed): int_part + num/den → "2 1/2"
+            if (obj.int_part != null && obj.num != null && obj.den != null) {
+                if (obj.int_part === 0) return obj.num + '/' + obj.den;
+                return obj.int_part + ' ' + obj.num + '/' + obj.den;
+            }
             if (obj.result_num != null && obj.result_den != null) return obj.result_num + '/' + obj.result_den;
             if (obj.result != null) return String(obj.result);
             if (obj.num != null && obj.den != null) return obj.num + '/' + obj.den;
