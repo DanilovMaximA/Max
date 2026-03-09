@@ -21,7 +21,7 @@
             <div id="teachers-section" class="admin-teachers-list"></div>
 
             <h2>Пользователи</h2>
-            <p>Редактируйте имя, школу и класс. Для учеников можно назначить учителя (выпадающий список); при необходимости подставьте школу и класс выбранного учителя кнопкой «Подставить школу/класс».</p>
+            <p>В колонке «Роль» можно назначить любого пользователя (кроме администратора) учителем, учеником или родителем — выберите роль и нажмите «Сменить роль». После этого учитель появится в блоке «Учителя: школа и класс» выше и в выпадающем списке при назначении учителя ученику.</p>
             <table class="admin-table">
                 <thead>
                     <tr>
@@ -98,11 +98,19 @@
                     const label = sc ? `${escapeHtml(t.name || t.email)} (${escapeHtml(t.email)}) — ${escapeHtml(sc)}` : `${escapeHtml(t.name || t.email)} (${escapeHtml(t.email)})`;
                     return `<option value="${t.id}">${label}</option>`;
                 }).join('');
+                const roleSelect = u.role === 'admin'
+                    ? escapeHtml(u.role)
+                    : `<select class="role-select" data-id="${u.id}">
+                        <option value="student" ${u.role === 'student' ? 'selected' : ''}>ученик</option>
+                        <option value="teacher" ${u.role === 'teacher' ? 'selected' : ''}>учитель</option>
+                        <option value="parent" ${u.role === 'parent' ? 'selected' : ''}>родитель</option>
+                       </select>
+                       <button type="button" class="btn-set-role" data-id="${u.id}">Сменить роль</button>`;
                 tr.innerHTML = `
                     <td>${u.id}</td>
                     <td>${escapeHtml(u.email)}</td>
                     <td><input type="text" class="edit-name" data-id="${u.id}" value="${escapeHtml(u.name || '')}" placeholder="Имя" /></td>
-                    <td>${escapeHtml(u.role)}</td>
+                    <td class="role-cell">${roleSelect}</td>
                     <td><input type="text" class="edit-school" data-id="${u.id}" value="${escapeHtml(u.school || '')}" placeholder="Школа" /></td>
                     <td><input type="text" class="edit-class" data-id="${u.id}" value="${escapeHtml(u.school_class || '')}" placeholder="Класс" /></td>
                     <td class="teacher-cell" data-id="${u.id}">${teacherNames}</td>
@@ -133,6 +141,33 @@
             tbody.querySelectorAll('.btn-remove-teachers').forEach(btn => {
                 btn.addEventListener('click', () => removeTeachers(parseInt(btn.dataset.id)));
             });
+            tbody.querySelectorAll('.btn-set-role').forEach(btn => {
+                btn.addEventListener('click', () => setUserRole(parseInt(btn.dataset.id)));
+            });
+        }
+
+        function setUserRole(id) {
+            const row = document.querySelector(`.role-select[data-id="${id}"]`)?.closest('tr');
+            if (!row) return;
+            const select = row.querySelector('.role-select');
+            const role = (select && select.value) || '';
+            if (!role) return;
+            fetch(`/api/admin/users/${id}/role`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ role })
+            }).then(r => r.json()).then(data => {
+                if (data.ok) {
+                    return Promise.all([fetch('/api/admin/users').then(r => r.json()), fetch('/api/admin/teachers').then(r => r.json())]);
+                }
+            }).then(results => {
+                if (!results || !results.length) return;
+                allUsers = results[0].users || [];
+                teachers = results[1].teachers || [];
+                renderTeachersSection();
+                renderUsers();
+            }).catch(() => {});
         }
 
         function saveUser(id) {

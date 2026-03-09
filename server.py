@@ -773,6 +773,24 @@ def api_admin_patch_user(user_id):
     return jsonify({'ok': True, 'user': {'id': user.id, 'name': user.name, 'school': user.school, 'school_class': user.school_class}})
 
 
+@app.route('/api/admin/users/<int:user_id>/role', methods=['PATCH', 'POST'])
+@require_role(ROLE_ADMIN)
+def api_admin_set_role(user_id):
+    """Назначить пользователю роль: teacher, student или parent. Админа менять нельзя."""
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    if user.role == ROLE_ADMIN:
+        return jsonify({'error': 'Нельзя изменить роль администратора'}), 400
+    data = request.get_json() or {}
+    role = (data.get('role') or '').strip().lower()
+    if role not in (ROLE_STUDENT, ROLE_TEACHER, ROLE_PARENT):
+        return jsonify({'error': 'role должен быть student, teacher или parent'}), 400
+    user.role = role
+    db.session.commit()
+    return jsonify({'ok': True, 'role': role, 'user': {'id': user.id, 'email': user.email, 'name': user.name, 'role': user.role}})
+
+
 @app.route('/api/admin/users/<int:user_id>/teacher', methods=['POST', 'DELETE'])
 @require_role(ROLE_ADMIN)
 def api_admin_user_teacher(user_id):
