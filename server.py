@@ -816,7 +816,7 @@ def api_parent_children():
 @app.route('/api/parent/children/<int:child_id>/dashboard')
 @require_role(ROLE_PARENT, ROLE_ADMIN)
 def api_parent_dashboard(child_id):
-    """Dashboard for one child: progress, achievements."""
+    """Dashboard for one child: progress, achievements, recent errors."""
     user = get_current_user()
     if user.role != ROLE_ADMIN:
         link = UserStudentLink.query.filter_by(parent_id=user.id, student_id=child_id).first()
@@ -827,8 +827,28 @@ def api_parent_dashboard(child_id):
         return jsonify({'error': 'Not found'}), 404
     stats = UserStats.query.filter_by(user_id=student.id).first()
     prog_list = UserTopicProgress.query.filter_by(user_id=student.id).all()
-    topics_progress = [{'name': Topic.query.get(p.topic_id).name if Topic.query.get(p.topic_id) else None, 'progress_pct': round(100 * p.correct_attempts / max(1, p.total_attempts))} for p in prog_list]
-    events = EventLog.query.filter_by(user_id=student.id).order_by(EventLog.created_at.desc()).limit(20).all()
+    total_attempts = sum(p.total_attempts for p in prog_list)
+    topics_progress = [{'name': Topic.query.get(p.topic_id).name if Topic.query.get(p.topic_id) else None, 'progress_pct': round(100 * p.correct_attempts / max(1, p.total_attempts)), 'total_attempts': p.total_attempts} for p in prog_list]
+    attempts = Attempt.query.filter_by(user_id=student.id, is_correct=False).order_by(Attempt.created_at.desc()).limit(15).all()
+    example_errors = []
+    for a in attempts:
+        op_ru = OPERATION_TITLES_RU.get(a.operation, a.operation)
+        err_ru = None
+        if a.error_label and a.error_label.error_type:
+            err_ru = get_error_type_name_ru(a.error_label.error_type)
+        elif a.errors:
+            det = detect_error_type(a.operation, a.errors)
+            if det:
+                err_ru = get_error_type_name_ru(det['error_type'])
+        example_errors.append({
+            'operation': a.operation,
+            'operation_ru': op_ru,
+            'error_type_ru': err_ru or 'Ошибка в ответе',
+            'task_params': a.task_params,
+            'user_answers': a.user_answers,
+            'correct_result': a.correct_result,
+            'created_at': a.created_at.isoformat() if a.created_at else None,
+        })
     from gamification import STATUS_NAMES
     return jsonify({
         'child': {'id': student.id, 'email': student.email, 'name': student.name},
@@ -839,7 +859,8 @@ def api_parent_dashboard(child_id):
         'status_name': STATUS_NAMES.get(stats.status, stats.status) if stats else 'Концентрация ци',
         'chests_available': stats.chests_available if stats else 0,
         'topics_progress': topics_progress,
-        'recent_events': [{'event_type': e.event_type, 'created_at': e.created_at.isoformat() if e.created_at else None} for e in events],
+        'total_attempts': total_attempts,
+        'example_errors': example_errors,
     })
 
 
@@ -871,6 +892,9 @@ def api_admin_users():
         teacher_links = UserStudentLink.query.filter_by(student_id=u.id).filter(UserStudentLink.teacher_id.isnot(None)).all()
         teacher_ids = [l.teacher_id for l in teacher_links]
         teachers = User.query.filter(User.id.in_(teacher_ids)).all() if teacher_ids else []
+        parent_links = UserStudentLink.query.filter_by(student_id=u.id).filter(UserStudentLink.parent_id.isnot(None)).all()
+        parent_ids = [l.parent_id for l in parent_links]
+        parents = User.query.filter(User.id.in_(parent_ids)).all() if parent_ids else []
         out.append({
             'id': u.id,
             'email': u.email,
@@ -880,6 +904,7 @@ def api_admin_users():
             'school_class': getattr(u, 'school_class', None) or '',
             'created_at': u.created_at.isoformat() if u.created_at else None,
             'teachers': [{'id': t.id, 'email': t.email, 'name': t.name or t.email} for t in teachers],
+            'parents': [{'id': p.id, 'email': p.email, 'name': p.name or p.email} for p in parents],
         })
     return jsonify({'users': out})
 
@@ -946,6 +971,36 @@ def api_admin_user_teacher(user_id):
     db.session.add(UserStudentLink(student_id=user_id, teacher_id=teacher_id))
     db.session.commit()
     return jsonify({'ok': True, 'teacher': {'id': teacher.id, 'email': teacher.email, 'name': teacher.name or teacher.email}})
+
+
+@app.route('/api/admin/users/<int:user_id>/parent', methods=['POST', 'DELETE'])
+@require_role(ROLE_ADMIN)
+def api_admin_user_parent(user_id):
+    """Назначить или снять родителя у ученика. POST: body { parent_id }. DELETE: снять всех родителей с ученика. Родителем может быть любой пользователь."""
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    if user.role != ROLE_STUDENT:
+        return jsonify({'error': 'Только у учеников может быть назначен родитель'}), 400
+    if request.method == 'DELETE':
+        UserStudentLink.query.filter_by(student_id=user_id).filter(UserStudentLink.parent_id.isnot(None)).delete()
+        db.session.commit()
+        return jsonify({'ok': True, 'parents': []})
+    data = request.get_json() or {}
+    parent_id = data.get('parent_id')
+    if not parent_id:
+        return jsonify({'error': 'parent_id required'}), 400
+    parent = User.query.get(parent_id)
+    if not parent:
+        return jsonify({'error': 'User not found'}), 404
+    if parent_id == user_id:
+        return jsonify({'error': 'Нельзя назначить ученика родителем самому себе'}), 400
+    link = UserStudentLink.query.filter_by(student_id=user_id, parent_id=parent_id).first()
+    if link:
+        return jsonify({'ok': True, 'parent': {'id': parent.id, 'email': parent.email, 'name': parent.name or parent.email}})
+    db.session.add(UserStudentLink(student_id=user_id, parent_id=parent_id))
+    db.session.commit()
+    return jsonify({'ok': True, 'parent': {'id': parent.id, 'email': parent.email, 'name': parent.name or parent.email}})
 
 
 @app.route('/api/new_task', methods=['GET'])

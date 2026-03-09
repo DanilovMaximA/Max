@@ -32,6 +32,7 @@
                         <th>Школа</th>
                         <th>Класс</th>
                         <th>Учитель</th>
+                        <th>Родитель</th>
                         <th>Действия</th>
                     </tr>
                 </thead>
@@ -93,11 +94,15 @@
             allUsers.forEach(u => {
                 const tr = document.createElement('tr');
                 const teacherNames = (u.teachers || []).map(t => t.name || t.email).join(', ') || '—';
+                const parentNames = (u.parents || []).map(p => p.name || p.email).join(', ') || '—';
                 const teacherOpts = teachers.map(t => {
                     const sc = [t.school, t.school_class].filter(Boolean).join(', ');
                     const label = sc ? `${escapeHtml(t.name || t.email)} (${escapeHtml(t.email)}) — ${escapeHtml(sc)}` : `${escapeHtml(t.name || t.email)} (${escapeHtml(t.email)})`;
                     return `<option value="${t.id}">${label}</option>`;
                 }).join('');
+                const parentOpts = allUsers.filter(x => x.id !== u.id).map(p =>
+                    `<option value="${p.id}">${escapeHtml(p.name || p.email)} (${escapeHtml(p.email)})</option>`
+                ).join('');
                 const roleSelect = u.role === 'admin'
                     ? escapeHtml(u.role)
                     : `<select class="role-select" data-id="${u.id}">
@@ -114,6 +119,7 @@
                     <td><input type="text" class="edit-school" data-id="${u.id}" value="${escapeHtml(u.school || '')}" placeholder="Школа" /></td>
                     <td><input type="text" class="edit-class" data-id="${u.id}" value="${escapeHtml(u.school_class || '')}" placeholder="Класс" /></td>
                     <td class="teacher-cell" data-id="${u.id}">${teacherNames}</td>
+                    <td class="parent-cell" data-id="${u.id}">${parentNames}</td>
                     <td>
                         ${u.role === 'student' ? `
                             <select class="teacher-select" data-id="${u.id}">
@@ -123,6 +129,13 @@
                             <button type="button" class="btn-copy-teacher-class" data-id="${u.id}" title="Подставить школу и класс выбранного учителя">Подставить школу/класс</button>
                             <button type="button" class="btn-assign-teacher" data-id="${u.id}">Назначить</button>
                             ${teacherNames !== '—' ? `<button type="button" class="btn-remove-teachers" data-id="${u.id}">Снять</button>` : ''}
+                            <br>
+                            <select class="parent-select" data-id="${u.id}">
+                                <option value="">— назначить родителя —</option>
+                                ${parentOpts}
+                            </select>
+                            <button type="button" class="btn-assign-parent" data-id="${u.id}">Назначить</button>
+                            ${parentNames !== '—' ? `<button type="button" class="btn-remove-parents" data-id="${u.id}">Снять</button>` : ''}
                         ` : '—'}
                         <button type="button" class="btn-save-user" data-id="${u.id}">Сохранить</button>
                     </td>
@@ -143,6 +156,12 @@
             });
             tbody.querySelectorAll('.btn-set-role').forEach(btn => {
                 btn.addEventListener('click', () => setUserRole(parseInt(btn.dataset.id)));
+            });
+            tbody.querySelectorAll('.btn-assign-parent').forEach(btn => {
+                btn.addEventListener('click', () => assignParent(parseInt(btn.dataset.id)));
+            });
+            tbody.querySelectorAll('.btn-remove-parents').forEach(btn => {
+                btn.addEventListener('click', () => removeParents(parseInt(btn.dataset.id)));
             });
         }
 
@@ -240,6 +259,31 @@
 
         function removeTeachers(studentId) {
             fetch(`/api/admin/users/${studentId}/teacher`, { method: 'DELETE', credentials: 'include' })
+                .then(r => r.json())
+                .then(() => fetch('/api/admin/users').then(r => r.json()))
+                .then(data => { allUsers = data.users || []; renderUsers(); })
+                .catch(() => {});
+        }
+
+        function assignParent(studentId) {
+            const row = document.querySelector(`.parent-select[data-id="${studentId}"]`)?.closest('tr');
+            if (!row) return;
+            const select = row.querySelector('.parent-select');
+            const parentId = select.value ? parseInt(select.value) : null;
+            if (!parentId) return;
+            fetch(`/api/admin/users/${studentId}/parent`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ parent_id: parentId })
+            }).then(r => r.json()).then(() => fetch('/api/admin/users').then(r => r.json())).then(data => {
+                allUsers = data.users || [];
+                renderUsers();
+            }).catch(() => {});
+        }
+
+        function removeParents(studentId) {
+            fetch(`/api/admin/users/${studentId}/parent`, { method: 'DELETE', credentials: 'include' })
                 .then(r => r.json())
                 .then(() => fetch('/api/admin/users').then(r => r.json()))
                 .then(data => { allUsers = data.users || []; renderUsers(); })

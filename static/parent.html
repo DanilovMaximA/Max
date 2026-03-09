@@ -3,13 +3,13 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Родитель — Тренажёр дроби</title>
+    <title>Кабинет родителя — Тренажёр дроби</title>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Панель родителя</h1>
+            <h1>Кабинет родителя</h1>
             <div class="auth-block">
                 <a href="/app" class="auth-btn">На тренажёр</a>
             </div>
@@ -23,9 +23,10 @@
                 <p id="dash-name"></p>
                 <p id="dash-stats"></p>
                 <p>Прогресс по темам:</p>
+                <p id="dash-total-attempts" class="muted"></p>
                 <ul id="dash-topics"></ul>
-                <p>Недавние события:</p>
-                <ul id="dash-events"></ul>
+                <p>Ошибки:</p>
+                <ul id="dash-errors"></ul>
             </div>
         </section>
     </div>
@@ -56,21 +57,82 @@
                 d.classList.remove('hidden');
                 document.getElementById('dash-name').textContent = 'Ребёнок: ' + (data.child.name || data.child.email);
                 document.getElementById('dash-stats').textContent = '⭐ ' + data.total_stars + ' | 🔥 Серия: ' + data.current_streak + ' | Лучшая: ' + data.best_streak + ' | ' + data.status_name + ' | Сундуков: ' + data.chests_available;
+                const totalAttempts = data.total_attempts != null ? data.total_attempts : 0;
+                document.getElementById('dash-total-attempts').textContent = 'Всего попыток: ' + totalAttempts;
                 const tUl = document.getElementById('dash-topics');
                 tUl.innerHTML = '';
                 (data.topics_progress || []).forEach(t => {
                     const li = document.createElement('li');
-                    li.textContent = (t.name || 'Тема') + ': ' + t.progress_pct + '%';
+                    li.textContent = (t.name || 'Тема') + ': ' + t.progress_pct + '%' + (t.total_attempts != null ? ' (попыток: ' + t.total_attempts + ')' : '');
                     tUl.appendChild(li);
                 });
-                const eUl = document.getElementById('dash-events');
+                const eUl = document.getElementById('dash-errors');
                 eUl.innerHTML = '';
-                (data.recent_events || []).forEach(e => {
+                (data.example_errors || []).forEach(ex => {
                     const li = document.createElement('li');
-                    li.textContent = e.event_type + ' — ' + (e.created_at || '');
+                    li.className = 'example-error-item';
+                    const taskStr = formatTask(ex.task_params, ex.operation);
+                    const userStr = formatStudentAnswer(ex.user_answers);
+                    const correctStr = formatCorrectResult(ex.correct_result);
+                    li.innerHTML = '<strong>Действие:</strong> ' + escapeHtml(ex.operation_ru || '—') + '<br>' +
+                        '<strong>Задание:</strong> ' + taskStr + '<br>' +
+                        '<strong>Ожидаемый результат:</strong> ' + escapeHtml(correctStr) + '<br>' +
+                        '<strong>Ответ ученика:</strong> ' + escapeHtml(userStr) +
+                        (ex.created_at ? '<br><span class="muted">' + new Date(ex.created_at).toLocaleString('ru-RU') + '</span>' : '');
                     eUl.appendChild(li);
                 });
+                if (!(data.example_errors || []).length) eUl.innerHTML = '<li class="muted">Нет ошибок</li>';
             });
+        }
+
+        function escapeHtml(s) {
+            if (s == null) return '';
+            const div = document.createElement('div');
+            div.textContent = s;
+            return div.innerHTML;
+        }
+
+        function formatTask(params, operation) {
+            if (!params) return '—';
+            const op = params.operation || operation;
+            const signs = { add: '+', subtract: '−', multiply: '×', divide: '÷', decimal_add: '+', decimal_subtract: '−', decimal_multiply: '×', decimal_divide: '÷' };
+            if (params.a_str != null && params.b_str != null) {
+                const sign = signs[op] || '+';
+                return params.a_str + ' ' + sign + ' ' + params.b_str;
+            }
+            if (op === 'mixed_numbers' && params.num != null && params.den != null) return params.num + '/' + params.den + (params.convert_direction === 'improper_to_mixed' ? ' → смешанное число' : '');
+            if (op === 'reduce' && params.num != null && params.den != null) return params.num + '/' + params.den;
+            if (params.num1 != null && params.den1 != null) {
+                const sign = (op && signs[op]) ? ' ' + (signs[op] || ' ') + ' ' : ' ';
+                const n2 = params.num2 != null ? sign + params.num2 + '/' + (params.den2 || '') : '';
+                return params.num1 + '/' + (params.den1 || '') + n2;
+            }
+            return JSON.stringify(params);
+        }
+
+        function formatCorrectResult(obj) {
+            if (obj == null) return '—';
+            if (typeof obj !== 'object') return String(obj);
+            if (obj.result_str != null && obj.result_str !== '') return obj.result_str;
+            if (obj.int_part != null && obj.num != null && obj.den != null) {
+                if (obj.int_part === 0) return obj.num + '/' + obj.den;
+                return obj.int_part + ' ' + obj.num + '/' + obj.den;
+            }
+            if (obj.result_num != null && obj.result_den != null) {
+                if (obj.result_den !== 0 && (obj.result_num === obj.result_den || obj.result_num === 0)) return String(obj.result_num ? 1 : 0);
+                return obj.result_num + '/' + obj.result_den;
+            }
+            if (obj.result != null) return String(obj.result);
+            if (obj.num != null && obj.den != null) return obj.num + '/' + obj.den;
+            return JSON.stringify(obj);
+        }
+
+        function formatStudentAnswer(ans) {
+            if (ans == null) return '—';
+            if (typeof ans === 'object' && ans.result !== undefined) return String(ans.result);
+            if (typeof ans === 'object' && ans.num != null && ans.den != null) return ans.num + '/' + ans.den;
+            if (typeof ans === 'object') return JSON.stringify(ans);
+            return String(ans);
         }
     </script>
 </body>
