@@ -611,7 +611,7 @@ def api_teacher_class_stats():
             'total_attempts': 0,
             'avg_pct': 0,
             'active_7d': 0,
-            'problem_topics': [],
+            'topics_progress': [],
             'top_errors': [],
             'activity_by_day': [],
         })
@@ -632,28 +632,27 @@ def api_teacher_class_stats():
             day_counts[d] = day_counts.get(d, 0) + 1
     activity_by_day = [{'date': d, 'count': day_counts.get(d, 0)} for d in
                        [(now - timedelta(days=i)).date().isoformat() for i in range(13, -1, -1)]]
-    # Проблемные темы: средний % по теме < 60
+    # Пройденные темы: все темы с попытками и средний % (без порога)
     topic_totals = {}
     topic_correct = {}
     for p in UserTopicProgress.query.filter(UserTopicProgress.user_id.in_(student_ids)).all():
         topic_totals[p.topic_id] = topic_totals.get(p.topic_id, 0) + p.total_attempts
         topic_correct[p.topic_id] = topic_correct.get(p.topic_id, 0) + p.correct_attempts
-    problem_topics = []
+    topics_progress = []
     for tid, total in topic_totals.items():
-        if total < 3:
+        if total == 0:
             continue
         pct = round(100 * topic_correct.get(tid, 0) / total)
-        if pct < 60:
-            t = Topic.query.get(tid)
-            problem_topics.append({
-                'topic_id': tid,
-                'name': OPERATION_TITLES_RU.get(t.operation, t.operation) if t else str(tid),
-                'avg_pct': pct,
-                'total_attempts': total,
-            })
-    problem_topics.sort(key=lambda x: x['avg_pct'])
-    # Топ ошибок по типам
-    error_counts = {}
+        t = Topic.query.get(tid)
+        topics_progress.append({
+            'topic_id': tid,
+            'name': OPERATION_TITLES_RU.get(t.operation, t.operation) if t else str(tid),
+            'avg_pct': pct,
+            'total_attempts': total,
+        })
+    topics_progress.sort(key=lambda x: x['name'])
+    # Топ ошибок с привязкой к теме (операции)
+    error_data = {}
     for a in attempts:
         if not a.is_correct:
             code = None
@@ -664,15 +663,25 @@ def api_teacher_class_stats():
                 if det:
                     code = det['error_type']
             if code:
-                error_counts[code] = error_counts.get(code, 0) + 1
-    top_errors = [{'error_type': code, 'error_type_ru': get_error_type_name_ru(code), 'count': c}
-                  for code, c in sorted(error_counts.items(), key=lambda x: -x[1])[:15]]
+                if code not in error_data:
+                    error_data[code] = {'count': 0, 'operations': set()}
+                error_data[code]['count'] += 1
+                error_data[code]['operations'].add(a.operation)
+    top_errors = []
+    for code, d in sorted(error_data.items(), key=lambda x: -x[1]['count'])[:15]:
+        ops_ru = sorted([OPERATION_TITLES_RU.get(op, op) for op in d['operations']])
+        top_errors.append({
+            'error_type': code,
+            'error_type_ru': get_error_type_name_ru(code),
+            'count': d['count'],
+            'operations_ru': ops_ru,
+        })
     return jsonify({
         'students_count': len(student_ids),
         'total_attempts': total_attempts,
         'avg_pct': avg_pct,
         'active_7d': active_7d,
-        'problem_topics': problem_topics,
+        'topics_progress': topics_progress,
         'top_errors': top_errors,
         'activity_by_day': activity_by_day,
     })

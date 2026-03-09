@@ -8,24 +8,24 @@
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>Кабинет учителя</h1>
-            <div class="auth-block">
-                <a href="/app" class="auth-btn">На тренажёр</a>
-            </div>
-        </header>
         <p id="auth-required" class="hidden">Войдите как учитель или администратор.</p>
         <section id="teacher-content" class="hidden">
-            <nav class="teacher-tabs">
-                <button type="button" class="teacher-tab active" data-tab="class">Класс</button>
-                <button type="button" class="teacher-tab" data-tab="student">Ученик</button>
-            </nav>
+            <header class="teacher-header">
+                <h1>Кабинет учителя</h1>
+                <div class="auth-block">
+                    <a href="/app" class="auth-btn">На тренажёр</a>
+                </div>
+                <nav class="teacher-tabs">
+                    <button type="button" class="teacher-tab active" data-tab="class">Класс</button>
+                    <button type="button" class="teacher-tab" data-tab="student">Ученик</button>
+                </nav>
+            </header>
 
             <div id="tab-class" class="teacher-tab-panel">
                 <div class="teacher-cards" id="class-cards"></div>
                 <div class="teacher-row">
                     <section class="teacher-block">
-                        <h3>Проблемные темы</h3>
+                        <h3>Пройденные темы</h3>
                         <ul id="problem-topics"></ul>
                     </section>
                     <section class="teacher-block">
@@ -35,6 +35,7 @@
                 </div>
                 <section class="teacher-block">
                     <h3>Активность по дням</h3>
+                    <p class="teacher-chart-caption">День → количество прорешаных примеров</p>
                     <div id="activity-chart" class="teacher-chart"></div>
                 </section>
                 <section class="teacher-block">
@@ -55,20 +56,19 @@
                             <ul id="student-topics"></ul>
                         </section>
                         <section class="teacher-block">
-                            <h4>Активность по дням</h4>
-                            <div id="student-activity-chart" class="teacher-chart teacher-chart-small"></div>
-                        </section>
-                    </div>
-                    <div class="teacher-row">
-                        <section class="teacher-block">
                             <h4>Типы ошибок</h4>
                             <ul id="student-error-types"></ul>
                         </section>
-                        <section class="teacher-block teacher-block-wide">
-                            <h4>Примеры ошибок</h4>
-                            <ul id="student-example-errors"></ul>
-                        </section>
                     </div>
+                    <section class="teacher-block teacher-block-wide">
+                        <h4>Примеры ошибок</h4>
+                        <ul id="student-example-errors"></ul>
+                    </section>
+                    <section class="teacher-block">
+                        <h4>Активность по дням</h4>
+                        <p class="teacher-chart-caption">День → количество прорешаных примеров</p>
+                        <div id="student-activity-chart" class="teacher-chart teacher-chart-small"></div>
+                    </section>
                 </div>
             </div>
         </section>
@@ -127,17 +127,18 @@
             `;
             const pt = document.getElementById('problem-topics');
             pt.innerHTML = '';
-            (data.problem_topics || []).forEach(t => {
+            (data.topics_progress || []).forEach(t => {
                 const li = document.createElement('li');
                 li.textContent = escapeHtml(t.name) + ' — ' + t.avg_pct + '% (попыток: ' + t.total_attempts + ')';
                 pt.appendChild(li);
             });
-            if (!(data.problem_topics || []).length) pt.innerHTML = '<li class="muted">Нет данных или все темы выше порога</li>';
+            if (!(data.topics_progress || []).length) pt.innerHTML = '<li class="muted">Нет данных</li>';
             const te = document.getElementById('top-errors');
             te.innerHTML = '';
             (data.top_errors || []).forEach(e => {
                 const li = document.createElement('li');
-                li.textContent = escapeHtml(e.error_type_ru) + ' — ' + e.count;
+                const topicStr = (e.operations_ru && e.operations_ru.length) ? e.operations_ru.join(', ') + ': ' : '';
+                li.textContent = topicStr + escapeHtml(e.error_type_ru) + ' — ' + e.count;
                 te.appendChild(li);
             });
             if (!(data.top_errors || []).length) te.innerHTML = '<li class="muted">Нет ошибок</li>';
@@ -154,11 +155,16 @@
                 const label = document.createElement('span');
                 label.className = 'teacher-chart-label';
                 label.textContent = d.date.slice(5);
+                const countSpan = document.createElement('span');
+                countSpan.className = 'teacher-chart-count';
+                countSpan.textContent = d.count;
+                countSpan.title = d.date + ': ' + d.count + ' примеров';
                 const fill = document.createElement('div');
                 fill.className = 'teacher-chart-bar';
                 fill.style.width = (100 * d.count / maxCount) + '%';
                 fill.title = d.date + ': ' + d.count + ' попыток';
                 bar.appendChild(label);
+                bar.appendChild(countSpan);
                 bar.appendChild(fill);
                 container.appendChild(bar);
             });
@@ -210,7 +216,7 @@
                 dash.classList.remove('hidden');
                 document.getElementById('student-detail-name').textContent = data.student.name || data.student.email;
                 const sc = [data.student.school, data.student.school_class].filter(Boolean).join(', ');
-                document.getElementById('student-detail-school-class').textContent = sc ? 'Школа, класс: ' + sc : '';
+                document.getElementById('student-detail-school-class').textContent = sc || '';
                 const tUl = document.getElementById('student-topics');
                 tUl.innerHTML = '';
                 (data.topics_progress || []).forEach(t => {
@@ -237,9 +243,11 @@
                     const taskStr = formatTask(ex.task_params);
                     const userStr = formatAnswer(ex.user_answers);
                     const correctStr = formatAnswer(ex.correct_result);
-                    li.innerHTML = '<strong>' + escapeHtml(ex.operation_ru) + '</strong> — ' + escapeHtml(ex.error_type_ru || '') +
-                        '<br><span class="muted">Задание: ' + taskStr + '</span>' +
-                        '<br>Ответ ученика: ' + escapeHtml(userStr) + ' → Верно: ' + escapeHtml(correctStr) +
+                    li.innerHTML =
+                        '<strong>Действие:</strong> ' + escapeHtml(ex.operation_ru || '—') + '<br>' +
+                        '<strong>Задание:</strong> ' + taskStr + '<br>' +
+                        '<strong>Ожидаемый результат:</strong> ' + escapeHtml(correctStr) + '<br>' +
+                        '<strong>Ответ ученика:</strong> ' + escapeHtml(userStr) +
                         (ex.created_at ? '<br><span class="muted">' + new Date(ex.created_at).toLocaleString('ru-RU') + '</span>' : '');
                     exUl.appendChild(li);
                 });

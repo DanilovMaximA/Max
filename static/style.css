@@ -1030,12 +1030,26 @@ header h1 {
 }
 
 /* Кабинет учителя — вкладки и дашборд */
+.teacher-header {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1.5rem 2rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.teacher-header .auth-block {
+    margin-right: auto;
+}
+
 .teacher-tabs {
     display: flex;
-    gap: 0.5rem;
-    margin-bottom: 1.25rem;
-    border-bottom: 1px solid var(--border-subtle);
-    padding-bottom: 0.5rem;
+    gap: 1.25rem;
+    margin-bottom: 0;
+    border-bottom: none;
+    padding-bottom: 0;
 }
 
 .teacher-tab {
@@ -1178,6 +1192,20 @@ header h1 {
     font-size: 0.65rem;
     color: var(--text-muted);
     white-space: nowrap;
+}
+
+.teacher-chart-count {
+    display: block;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: var(--glow-cyan);
+    margin-bottom: 0.15rem;
+}
+
+.teacher-chart-caption {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin: 0 0 0.5rem 0;
 }
 
 .teacher-chart-bar {
