@@ -292,13 +292,20 @@
             if (obj.result_str != null && obj.result_str !== '') return obj.result_str;
             // Смешанное число (improper_to_mixed): int_part + num/den → "2 1/2"
             if (obj.int_part != null && obj.num != null && obj.den != null) {
-                if (obj.int_part === 0) return obj.num + '/' + obj.den;
-                return obj.int_part + ' ' + obj.num + '/' + obj.den;
+                if (obj.int_part === 0) return formatFraction(obj.num, obj.den);
+                return obj.int_part + ' ' + formatFraction(obj.num, obj.den);
             }
-            if (obj.result_num != null && obj.result_den != null) return obj.result_num + '/' + obj.result_den;
+            if (obj.result_num != null && obj.result_den != null) return formatFraction(obj.result_num, obj.result_den);
             if (obj.result != null) return String(obj.result);
-            if (obj.num != null && obj.den != null) return obj.num + '/' + obj.den;
+            if (obj.num != null && obj.den != null) return formatFraction(obj.num, obj.den);
             return JSON.stringify(obj);
+        }
+
+        function formatFraction(num, den) {
+            if (den == null || den === 0) return num + '/' + den;
+            if (num == null) return '—';
+            if (num === den || num === 0) return String(num === 0 ? 0 : 1);
+            return num + '/' + den;
         }
 
         function formatStudentAnswer(ans) {
