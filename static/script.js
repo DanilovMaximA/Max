@@ -763,12 +763,18 @@ document.addEventListener('DOMContentLoaded', () => {
             const isOpen = !profileDropdown.classList.contains('hidden');
             profileDropdown.classList.toggle('hidden', isOpen);
             btnProfile.setAttribute('aria-expanded', !isOpen);
-            if (!isOpen) return;
+            // Загружаем данные профиля только при открытии выпадающего списка
+            if (isOpen) return;
             fetch('/api/profile').then(r => r.json()).then(data => {
                 document.getElementById('profile-school-val').textContent = data.school || '—';
                 document.getElementById('profile-class-val').textContent = data.school_class || '—';
                 document.getElementById('profile-level-val').textContent = data.level_name || data.level || '—';
-                document.getElementById('profile-stars-val').textContent = (data.total_stars != null ? data.total_stars : '0') + '/3';
+                const starsValEl = document.getElementById('profile-stars-val');
+                if (starsValEl) {
+                    const currentStars = data.total_stars != null ? data.total_stars : 0;
+                    const starsLeft = Math.max(0, 3 - currentStars);
+                    starsValEl.textContent = String(starsLeft);
+                }
                 document.getElementById('profile-chests-val').textContent = data.chests_available != null ? data.chests_available : '0';
                 document.getElementById('profile-teachers-val').textContent = (data.teachers && data.teachers.length) ? data.teachers.join(', ') : '—';
                 const streakEl = document.getElementById('profile-streak-val');
