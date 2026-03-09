@@ -14,7 +14,7 @@ from decimal import Decimal, ROUND_HALF_UP
 import bcrypt
 
 from models import db, User, Topic, Attempt, ErrorLabel, UserTopicProgress, EventLog, UserStats, UserReward, UserStudentLink, ROLE_STUDENT, ROLE_TEACHER, ROLE_PARENT, ROLE_ADMIN, ROLES
-from error_detector import detect_error_type
+from error_detector import detect_error_type, get_error_type_name_ru
 from ai_service import ai_service
 from gamification import update_gamification
 from auth_provider import SessionAuthProvider
@@ -113,6 +113,23 @@ VALID_OPERATIONS = [
     'decimal_add', 'decimal_subtract', 'decimal_multiply', 'decimal_divide',
     'decimal_compare', 'decimal_to_common', 'common_to_decimal', 'decimal_round'
 ]
+
+# Русские названия операций для отчётов и дашбордов
+OPERATION_TITLES_RU = {
+    'add': 'Сложение дробей', 'subtract': 'Вычитание дробей', 'multiply': 'Умножение дробей',
+    'divide': 'Деление дробей', 'power': 'Степень дроби', 'compare': 'Сравнение дробей',
+    'reduce': 'Сокращение дробей', 'convert': 'Смешанные и неправильные дроби',
+    'add_subtract_same_den': 'Сложение/вычитание с одинаковым знаменателем',
+    'natural_div_fraction': 'Деление натурального на дробь', 'mixed_numbers': 'Смешанные числа',
+    'add_subtract_mixed': 'Сложение/вычитание смешанных', 'basic_property': 'Основное свойство дроби',
+    'common_denominator': 'Приведение к общему знаменателю',
+    'compare_add_subtract': 'Сравнение, сложение и вычитание', 'fraction_of_number': 'Дробь от числа',
+    'whole_from_part': 'Число по его дроби', 'decimal_add': 'Сложение десятичных',
+    'decimal_subtract': 'Вычитание десятичных', 'decimal_multiply': 'Умножение десятичных',
+    'decimal_divide': 'Деление десятичных', 'decimal_compare': 'Сравнение десятичных',
+    'decimal_to_common': 'Десятичная в обыкновенную', 'common_to_decimal': 'Обыкновенная в десятичную',
+    'decimal_round': 'Округление десятичных',
+}
 
 
 def gcd(a, b):
@@ -331,6 +348,11 @@ def parent_page():
     return send_from_directory('static', 'parent.html')
 
 
+@app.route('/admin')
+def admin_page():
+    return send_from_directory('static', 'admin.html')
+
+
 def get_current_user():
     """Return current User from auth provider (session or future messenger)."""
     try:
@@ -540,7 +562,7 @@ def require_role(*roles):
 @app.route('/api/teacher/students')
 @require_role(ROLE_TEACHER, ROLE_ADMIN)
 def api_teacher_students():
-    """List students (linked to teacher or all if admin)."""
+    """List students (linked to teacher or all if admin). Returns by_class for grouping by class."""
     user = get_current_user()
     if user.role == ROLE_ADMIN:
         students = User.query.filter_by(role=ROLE_STUDENT).all()
@@ -556,12 +578,20 @@ def api_teacher_students():
             'id': s.id,
             'email': s.email,
             'name': s.name,
+            'school': getattr(s, 'school', None) or '',
+            'school_class': getattr(s, 'school_class', None) or '',
             'total_stars': stats.total_stars if stats else 0,
             'current_streak': stats.current_streak if stats else 0,
             'topics_count': len(prog),
             'progress_summary': [{'operation': Topic.query.get(p.topic_id).operation if Topic.query.get(p.topic_id) else None, 'progress_pct': round(100 * p.correct_attempts / max(1, p.total_attempts))} for p in prog],
         })
-    return jsonify({'students': out})
+    by_class = {}
+    for s in out:
+        cls = (s.get('school_class') or '').strip() or '—'
+        if cls not in by_class:
+            by_class[cls] = []
+        by_class[cls].append(s)
+    return jsonify({'students': out, 'by_class': by_class})
 
 
 @app.route('/api/teacher/students/<int:student_id>')
@@ -590,15 +620,40 @@ def api_teacher_student_detail(student_id):
             'best_streak': p.best_streak,
         })
     attempts = Attempt.query.filter_by(user_id=student.id).order_by(Attempt.created_at.desc()).limit(100).all()
-    error_counts = {}
+    error_counts_by_code = {}
     for a in attempts:
-        if not a.is_correct and a.errors:
-            for k, v in a.errors.items():
-                if v and isinstance(v, bool):
-                    error_counts[k] = error_counts.get(k, 0) + 1
+        if not a.is_correct:
+            if a.error_label and a.error_label.error_type:
+                code = a.error_label.error_type
+                error_counts_by_code[code] = error_counts_by_code.get(code, 0) + 1
+            elif a.errors:
+                det = detect_error_type(a.operation, a.errors)
+                if det:
+                    code = det['error_type']
+                    error_counts_by_code[code] = error_counts_by_code.get(code, 0) + 1
+    error_type_counts_ru = {get_error_type_name_ru(code): cnt for code, cnt in error_counts_by_code.items()}
+    recent_with_ru = []
+    for a in attempts[:20]:
+        op_ru = OPERATION_TITLES_RU.get(a.operation, a.operation)
+        err_ru = None
+        if not a.is_correct:
+            if a.error_label and a.error_label.error_type:
+                err_ru = get_error_type_name_ru(a.error_label.error_type)
+            elif a.errors:
+                det = detect_error_type(a.operation, a.errors)
+                if det:
+                    err_ru = get_error_type_name_ru(det['error_type'])
+        recent_with_ru.append({
+            'id': a.id,
+            'operation': a.operation,
+            'operation_ru': op_ru,
+            'is_correct': a.is_correct,
+            'error_type_ru': err_ru,
+            'created_at': a.created_at.isoformat() if a.created_at else None,
+        })
     from gamification import STATUS_NAMES
     return jsonify({
-        'student': {'id': student.id, 'email': student.email, 'name': student.name},
+        'student': {'id': student.id, 'email': student.email, 'name': student.name, 'school': getattr(student, 'school', None) or '', 'school_class': getattr(student, 'school_class', None) or ''},
         'gamification': {
             'total_stars': stats.total_stars if stats else 0,
             'current_streak': stats.current_streak if stats else 0,
@@ -608,8 +663,9 @@ def api_teacher_student_detail(student_id):
             'chests_available': stats.chests_available if stats else 0,
         },
         'topics_progress': topics_progress,
-        'recent_attempts': [{'id': a.id, 'operation': a.operation, 'is_correct': a.is_correct, 'created_at': a.created_at.isoformat() if a.created_at else None} for a in attempts[:20]],
-        'error_type_counts': error_counts,
+        'recent_attempts': recent_with_ru,
+        'error_type_counts': error_counts_by_code,
+        'error_type_counts_ru': error_type_counts_ru,
     })
 
 
@@ -656,6 +712,85 @@ def api_parent_dashboard(child_id):
         'topics_progress': topics_progress,
         'recent_events': [{'event_type': e.event_type, 'created_at': e.created_at.isoformat() if e.created_at else None} for e in events],
     })
+
+
+# --- Admin API ---
+
+@app.route('/api/admin/teachers')
+@require_role(ROLE_ADMIN)
+def api_admin_teachers():
+    """Список учителей для выпадающего списка (имя, email)."""
+    teachers = User.query.filter(User.role.in_([ROLE_TEACHER, ROLE_ADMIN])).order_by(User.name, User.email).all()
+    return jsonify({'teachers': [{'id': t.id, 'email': t.email, 'name': t.name or t.email} for t in teachers]})
+
+
+@app.route('/api/admin/users')
+@require_role(ROLE_ADMIN)
+def api_admin_users():
+    """Список всех пользователей с полями для админки."""
+    users = User.query.order_by(User.role, User.email).all()
+    out = []
+    for u in users:
+        teacher_links = UserStudentLink.query.filter_by(student_id=u.id).filter(UserStudentLink.teacher_id.isnot(None)).all()
+        teacher_ids = [l.teacher_id for l in teacher_links]
+        teachers = User.query.filter(User.id.in_(teacher_ids)).all() if teacher_ids else []
+        out.append({
+            'id': u.id,
+            'email': u.email,
+            'name': u.name,
+            'role': u.role,
+            'school': getattr(u, 'school', None) or '',
+            'school_class': getattr(u, 'school_class', None) or '',
+            'created_at': u.created_at.isoformat() if u.created_at else None,
+            'teachers': [{'id': t.id, 'email': t.email, 'name': t.name or t.email} for t in teachers],
+        })
+    return jsonify({'users': out})
+
+
+@app.route('/api/admin/users/<int:user_id>', methods=['PATCH'])
+@require_role(ROLE_ADMIN)
+def api_admin_patch_user(user_id):
+    """Изменить имя, школу, класс пользователя."""
+    data = request.get_json() or {}
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    if 'name' in data:
+        user.name = (data['name'] or '').strip() or None
+    if 'school' in data:
+        user.school = (data['school'] or '').strip() or None
+    if 'school_class' in data:
+        user.school_class = (data['school_class'] or '').strip() or None
+    db.session.commit()
+    return jsonify({'ok': True, 'user': {'id': user.id, 'name': user.name, 'school': user.school, 'school_class': user.school_class}})
+
+
+@app.route('/api/admin/users/<int:user_id>/teacher', methods=['POST', 'DELETE'])
+@require_role(ROLE_ADMIN)
+def api_admin_user_teacher(user_id):
+    """Назначить или снять учителя у ученика. POST: body { teacher_id }. DELETE: снять всех учителей с ученика."""
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    if user.role != ROLE_STUDENT:
+        return jsonify({'error': 'Only students can have teachers'}), 400
+    if request.method == 'DELETE':
+        UserStudentLink.query.filter_by(student_id=user_id).filter(UserStudentLink.teacher_id.isnot(None)).delete()
+        db.session.commit()
+        return jsonify({'ok': True, 'teachers': []})
+    data = request.get_json() or {}
+    teacher_id = data.get('teacher_id')
+    if not teacher_id:
+        return jsonify({'error': 'teacher_id required'}), 400
+    teacher = User.query.get(teacher_id)
+    if not teacher or teacher.role not in (ROLE_TEACHER, ROLE_ADMIN):
+        return jsonify({'error': 'Teacher not found'}), 404
+    link = UserStudentLink.query.filter_by(student_id=user_id, teacher_id=teacher_id).first()
+    if link:
+        return jsonify({'ok': True, 'teacher': {'id': teacher.id, 'email': teacher.email, 'name': teacher.name or teacher.email}})
+    db.session.add(UserStudentLink(student_id=user_id, teacher_id=teacher_id))
+    db.session.commit()
+    return jsonify({'ok': True, 'teacher': {'id': teacher.id, 'email': teacher.email, 'name': teacher.name or teacher.email}})
 
 
 @app.route('/api/new_task', methods=['GET'])

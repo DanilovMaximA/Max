@@ -705,16 +705,20 @@ document.addEventListener('DOMContentLoaded', () => {
             if (btnProfile) btnProfile.classList.remove('hidden');
             const btnTeacher = document.getElementById('btn-teacher');
             const btnParent = document.getElementById('btn-parent');
+            const btnAdmin = document.getElementById('btn-admin');
             if (btnTeacher) btnTeacher.classList.toggle('hidden', user.role !== 'teacher' && user.role !== 'admin');
             if (btnParent) btnParent.classList.toggle('hidden', user.role !== 'parent' && user.role !== 'admin');
+            if (btnAdmin) btnAdmin.classList.toggle('hidden', user.role !== 'admin');
         } else {
             authUser.classList.add('hidden');
             btnLogout.classList.add('hidden');
             if (btnProfile) btnProfile.classList.add('hidden');
             const btnTeacher = document.getElementById('btn-teacher');
             const btnParent = document.getElementById('btn-parent');
+            const btnAdmin = document.getElementById('btn-admin');
             if (btnTeacher) btnTeacher.classList.add('hidden');
             if (btnParent) btnParent.classList.add('hidden');
+            if (btnAdmin) btnAdmin.classList.add('hidden');
         }
     }
     function checkAuth(networkRetries = 5) {

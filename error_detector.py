@@ -55,6 +55,26 @@ ERROR_TYPE_MAP = {
     ),
 }
 
+# Русские названия типов ошибок для отображения в отчётах и дашбордах
+ERROR_TYPE_NAMES = {
+    'wrong_common_denominator': 'Неверный общий знаменатель',
+    'wrong_additional_factor_first': 'Ошибка в дополнительном множителе (1-я дробь)',
+    'wrong_additional_factor_second': 'Ошибка в дополнительном множителе (2-я дробь)',
+    'wrong_numerators_action': 'Ошибка в действии с числителями или результате',
+    'wrong_comparison': 'Неверный знак сравнения',
+    'wrong_decimal_integer_part': 'Ошибка в целой части',
+    'wrong_decimal_fractional_part': 'Ошибка в дробной части',
+    'wrong_integer_part_mixed': 'Неверная целая часть смешанного числа',
+    'wrong_numerator_mixed': 'Неверный числитель дробной части',
+    'wrong_denominator_mixed': 'Неверный знаменатель дробной части',
+    'result_not_reduced': 'Дробь не сокращена',
+}
+
+
+def get_error_type_name_ru(code):
+    """Вернуть русское название типа ошибки по коду или сам код."""
+    return ERROR_TYPE_NAMES.get(code, code or 'Ошибка в ответе')
+
 
 def detect_error_type(operation, errors):
     """

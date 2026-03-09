@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Админ — Тренажёр дроби</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Панель администратора</h1>
+            <div class="auth-block">
+                <a href="/app" class="auth-btn">На тренажёр</a>
+            </div>
+        </header>
+        <p id="auth-required" class="hidden">Доступ только для администратора.</p>
+        <section id="admin-content" class="hidden">
+            <h2>Пользователи</h2>
+            <p>Редактируйте имя, школу и класс. Для учеников можно назначить учителя (выпадающий список). Класс можно ввести вручную.</p>
+            <table class="admin-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Email</th>
+                        <th>Имя</th>
+                        <th>Роль</th>
+                        <th>Школа</th>
+                        <th>Класс</th>
+                        <th>Учитель</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="users-tbody"></tbody>
+            </table>
+        </section>
+    </div>
+    <script>
+        let allUsers = [];
+        let teachers = [];
+
+        fetch('/api/me').then(r => r.json()).then(data => {
+            const user = data.user;
+            if (!user || user.role !== 'admin') {
+                document.getElementById('auth-required').classList.remove('hidden');
+                return;
+            }
+            document.getElementById('admin-content').classList.remove('hidden');
+            return Promise.all([fetch('/api/admin/users').then(r => r.json()), fetch('/api/admin/teachers').then(r => r.json())]);
+        }).then(results => {
+            if (!results || !results.length) return;
+            allUsers = (results[0].users || []);
+            teachers = (results[1].teachers || []);
+            renderUsers();
+        }).catch(() => {});
+
+        function escapeHtml(s) {
+            if (s == null) return '';
+            const div = document.createElement('div');
+            div.textContent = s;
+            return div.innerHTML;
+        }
+
+        function renderUsers() {
+            const tbody = document.getElementById('users-tbody');
+            tbody.innerHTML = '';
+            allUsers.forEach(u => {
+                const tr = document.createElement('tr');
+                const teacherNames = (u.teachers || []).map(t => t.name || t.email).join(', ') || '—';
+                tr.innerHTML = `
+                    <td>${u.id}</td>
+                    <td>${escapeHtml(u.email)}</td>
+                    <td><input type="text" class="edit-name" data-id="${u.id}" value="${escapeHtml(u.name || '')}" placeholder="Имя" /></td>
+                    <td>${escapeHtml(u.role)}</td>
+                    <td><input type="text" class="edit-school" data-id="${u.id}" value="${escapeHtml(u.school || '')}" placeholder="Школа" /></td>
+                    <td><input type="text" class="edit-class" data-id="${u.id}" value="${escapeHtml(u.school_class || '')}" placeholder="Класс" /></td>
+                    <td class="teacher-cell" data-id="${u.id}">${teacherNames}</td>
+                    <td>
+                        ${u.role === 'student' ? `
+                            <select class="teacher-select" data-id="${u.id}">
+                                <option value="">— назначить учителя —</option>
+                                ${teachers.map(t => `<option value="${t.id}">${escapeHtml(t.name || t.email)} (${escapeHtml(t.email)})</option>`).join('')}
+                            </select>
+                            <button type="button" class="btn-assign-teacher" data-id="${u.id}">Назначить</button>
+                            ${teacherNames !== '—' ? `<button type="button" class="btn-remove-teachers" data-id="${u.id}">Снять</button>` : ''}
+                        ` : '—'}
+                        <button type="button" class="btn-save-user" data-id="${u.id}">Сохранить</button>
+                    </td>
+                `;
+                tbody.appendChild(tr);
+            });
+            tbody.querySelectorAll('.btn-save-user').forEach(btn => {
+                btn.addEventListener('click', () => saveUser(parseInt(btn.dataset.id)));
+            });
+            tbody.querySelectorAll('.btn-assign-teacher').forEach(btn => {
+                btn.addEventListener('click', () => assignTeacher(parseInt(btn.dataset.id)));
+            });
+            tbody.querySelectorAll('.btn-remove-teachers').forEach(btn => {
+                btn.addEventListener('click', () => removeTeachers(parseInt(btn.dataset.id)));
+            });
+        }
+
+        function saveUser(id) {
+            const row = document.querySelector(`.edit-name[data-id="${id}"]`)?.closest('tr');
+            if (!row) return;
+            const name = (row.querySelector('.edit-name').value || '').trim();
+            const school = (row.querySelector('.edit-school').value || '').trim();
+            const schoolClass = (row.querySelector('.edit-class').value || '').trim();
+            fetch(`/api/admin/users/${id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ name: name || null, school: school || null, school_class: schoolClass || null })
+            }).then(r => r.json()).then(data => {
+                if (data.ok) {
+                    const u = allUsers.find(x => x.id === id);
+                    if (u) { u.name = data.user.name; u.school = data.user.school; u.school_class = data.user.school_class; }
+                }
+            }).catch(() => {});
+        }
+
+        function assignTeacher(studentId) {
+            const row = document.querySelector(`.teacher-select[data-id="${studentId}"]`)?.closest('tr');
+            if (!row) return;
+            const select = row.querySelector('.teacher-select');
+            const teacherId = select.value ? parseInt(select.value) : null;
+            if (!teacherId) return;
+            fetch(`/api/admin/users/${studentId}/teacher`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ teacher_id: teacherId })
+            }).then(r => r.json()).then(() => fetch('/api/admin/users').then(r => r.json())).then(data => {
+                allUsers = data.users || [];
+                renderUsers();
+            }).catch(() => {});
+        }
+
+        function removeTeachers(studentId) {
+            fetch(`/api/admin/users/${studentId}/teacher`, { method: 'DELETE', credentials: 'include' })
+                .then(r => r.json())
+                .then(() => fetch('/api/admin/users').then(r => r.json()))
+                .then(data => { allUsers = data.users || []; renderUsers(); })
+                .catch(() => {});
+        }
+    </script>
+</body>
+</html>

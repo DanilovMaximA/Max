@@ -785,6 +785,183 @@ header h1 {
     100% { filter: drop-shadow(0 0 40px rgba(250, 204, 21, 0.8)) drop-shadow(0 0 80px rgba(250, 204, 21, 0.3)); }
 }
 
+/* Админка — таблица пользователей */
+.admin-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+    margin-top: 1rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--bg-elevated);
+    box-shadow: 0 0 20px -8px rgba(0, 0, 0, 0.2);
+}
+
+.admin-table th,
+.admin-table td {
+    padding: 0.6rem 0.75rem;
+    text-align: left;
+    border-bottom: 1px solid var(--border-subtle);
+    vertical-align: middle;
+}
+
+.admin-table thead th {
+    background: rgba(34, 211, 238, 0.08);
+    color: var(--glow-cyan);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.admin-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.admin-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.admin-table input[type="text"] {
+    width: 100%;
+    min-width: 80px;
+    max-width: 160px;
+    padding: 0.4rem 0.6rem;
+    font-size: 0.875rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+}
+
+.admin-table input[type="text"]:focus {
+    outline: none;
+    border-color: var(--glow-cyan);
+    box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.admin-table select {
+    padding: 0.35rem 0.6rem;
+    font-size: 0.85rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    min-width: 140px;
+    margin-right: 0.35rem;
+}
+
+.admin-table .teacher-cell {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    max-width: 180px;
+}
+
+.admin-table button {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.8rem;
+    margin-right: 0.25rem;
+    margin-top: 0.2rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.admin-table button:hover {
+    border-color: var(--glow-cyan);
+    background: var(--accent-soft);
+}
+
+.admin-table .btn-save-user {
+    border-color: rgba(34, 211, 238, 0.4);
+    color: var(--glow-cyan);
+}
+
+/* Учитель — секции по классам */
+.teacher-class-section {
+    margin-bottom: 1.5rem;
+    padding: 1rem 1.25rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    background: var(--bg-elevated);
+    box-shadow: 0 0 20px -8px rgba(0, 0, 0, 0.15);
+}
+
+.teacher-class-section h4 {
+    margin: 0 0 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--glow-cyan);
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.students-by-class {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.students-by-class li {
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.35rem;
+    border-radius: 8px;
+    background: var(--bg-card);
+    border: 1px solid transparent;
+    transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+}
+
+.students-by-class li:hover {
+    background: var(--accent-soft);
+    border-color: rgba(34, 211, 238, 0.25);
+    box-shadow: 0 0 16px -4px var(--accent-soft);
+}
+
+.students-by-class li:last-child {
+    margin-bottom: 0;
+}
+
+#by-class-container {
+    margin-bottom: 1.5rem;
+}
+
+#students-list {
+    margin-bottom: 1.25rem;
+}
+
+#student-detail {
+    margin-top: 1rem;
+    padding: 1.25rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    background: var(--bg-elevated);
+}
+
+#student-detail p {
+    margin: 0.4rem 0;
+    font-size: 0.95rem;
+    color: var(--text-muted);
+}
+
+#student-detail p strong {
+    color: var(--text-primary);
+}
+
+#student-detail ul {
+    margin: 0.5rem 0 1rem 1.25rem;
+    padding: 0;
+}
+
+#student-detail ul li {
+    margin-bottom: 0.35rem;
+    font-size: 0.9rem;
+    color: var(--text-muted);
+}
+
 /* Адаптивность */
 @media (max-width: 480px) {
     body {
@@ -802,5 +979,18 @@ header h1 {
     }
     .viz-latex {
         padding: 0.75rem;
+    }
+    .admin-table {
+        font-size: 0.8rem;
+    }
+    .admin-table th,
+    .admin-table td {
+        padding: 0.45rem 0.5rem;
+    }
+    .admin-table input[type="text"] {
+        max-width: 100px;
+    }
+    .admin-table select {
+        min-width: 100px;
     }
 }
