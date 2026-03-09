@@ -23,10 +23,10 @@ from auth_provider import SessionAuthProvider
 _static_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'static')
 app = Flask(__name__, static_folder=_static_dir)
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-change-in-production')
-# БД: обязательны DATABASE_URL или DATABASE_URI (PostgreSQL)
+# БД: DATABASE_URL/URI для PostgreSQL (Render и прод). Локально без них — SQLite в памяти (без сохранения между запусками)
 _db_uri = os.environ.get('DATABASE_URI') or os.environ.get('DATABASE_URL')
 if not _db_uri:
-    raise SystemExit('Задайте DATABASE_URL (или DATABASE_URI) — подключение к PostgreSQL. Локально: создайте БД и укажите postgresql://user:pass@host/dbname')
+    _db_uri = 'sqlite:///:memory:'
 if _db_uri.startswith('postgres://'):
     _db_uri = _db_uri.replace('postgres://', 'postgresql://', 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = _db_uri
@@ -719,9 +719,17 @@ def api_parent_dashboard(child_id):
 @app.route('/api/admin/teachers')
 @require_role(ROLE_ADMIN)
 def api_admin_teachers():
-    """Список учителей для выпадающего списка (имя, email)."""
+    """Список учителей для выпадающего списка (имя, email, школа, класс)."""
     teachers = User.query.filter(User.role.in_([ROLE_TEACHER, ROLE_ADMIN])).order_by(User.name, User.email).all()
-    return jsonify({'teachers': [{'id': t.id, 'email': t.email, 'name': t.name or t.email} for t in teachers]})
+    return jsonify({
+        'teachers': [{
+            'id': t.id,
+            'email': t.email,
+            'name': t.name or t.email,
+            'school': getattr(t, 'school', None) or '',
+            'school_class': getattr(t, 'school_class', None) or '',
+        } for t in teachers]
+    })
 
 
 @app.route('/api/admin/users')
@@ -2081,11 +2089,16 @@ def init_db():
 
 
 if __name__ == '__main__':
+    if _db_uri == 'sqlite:///:memory:':
+        print('Локальный режим: БД в памяти (данные не сохраняются после остановки). Для PostgreSQL задайте DATABASE_URL.')
     init_db()
     threading.Timer(1.0, open_browser).start()
     app.run(debug=True, port=5000)
 else:
-    # Gunicorn (Render): инициализацию БД — в фоне, чтобы воркер сразу слушал порт
+    # Gunicorn (Render): без DATABASE_URL не запускаем — нужен PostgreSQL
+    if _db_uri == 'sqlite:///:memory:':
+        raise SystemExit('Для запуска через gunicorn задайте DATABASE_URL (PostgreSQL). Локальная проверка: запускайте python server.py — тогда используется БД в памяти.')
+    # Инициализацию БД — в фоне, чтобы воркер сразу слушал порт
     _db_init_in_background = True
     def _init_db_thread():
         try:

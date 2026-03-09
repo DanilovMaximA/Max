@@ -881,6 +881,73 @@ header h1 {
     color: var(--glow-cyan);
 }
 
+/* Админка — блок учителей (школа и класс) */
+.admin-teachers-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
+.admin-teacher-card {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem 1rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    background: var(--bg-elevated);
+    font-size: 0.9rem;
+}
+
+.admin-teacher-card label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    color: var(--text-muted);
+}
+
+.admin-teacher-card input {
+    padding: 0.35rem 0.5rem;
+    font-size: 0.875rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    min-width: 120px;
+}
+
+.admin-teacher-name {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.admin-teacher-email {
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.admin-teacher-card .btn-save-teacher {
+    padding: 0.35rem 0.65rem;
+    font-size: 0.8rem;
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    background: var(--bg-dark);
+    color: var(--text-primary);
+    cursor: pointer;
+}
+
+.admin-teacher-card .btn-save-teacher:hover {
+    border-color: var(--glow-cyan);
+    background: var(--accent-soft);
+}
+
+.admin-table .btn-copy-teacher-class {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.5rem;
+}
+
 /* Учитель — секции по классам */
 .teacher-class-section {
     margin-bottom: 1.5rem;

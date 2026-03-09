@@ -16,8 +16,12 @@
         </header>
         <p id="auth-required" class="hidden">Доступ только для администратора.</p>
         <section id="admin-content" class="hidden">
+            <h2>Учителя: школа и класс</h2>
+            <p>Назначьте каждому учителю школу и класс (например: школа «МБОУ Лицей 1», класс «5Л»). Эти данные отображаются в панели учителя и при назначении учителя ученику можно подставить их в поля ученика.</p>
+            <div id="teachers-section" class="admin-teachers-list"></div>
+
             <h2>Пользователи</h2>
-            <p>Редактируйте имя, школу и класс. Для учеников можно назначить учителя (выпадающий список). Класс можно ввести вручную.</p>
+            <p>Редактируйте имя, школу и класс. Для учеников можно назначить учителя (выпадающий список); при необходимости подставьте школу и класс выбранного учителя кнопкой «Подставить школу/класс».</p>
             <table class="admin-table">
                 <thead>
                     <tr>
@@ -51,8 +55,30 @@
             if (!results || !results.length) return;
             allUsers = (results[0].users || []);
             teachers = (results[1].teachers || []);
+            renderTeachersSection();
             renderUsers();
         }).catch(() => {});
+
+        function renderTeachersSection() {
+            const container = document.getElementById('teachers-section');
+            container.innerHTML = '';
+            const teacherUsers = allUsers.filter(u => u.role === 'teacher' || u.role === 'admin');
+            teacherUsers.forEach(u => {
+                const card = document.createElement('div');
+                card.className = 'admin-teacher-card';
+                card.innerHTML = `
+                    <span class="admin-teacher-name">${escapeHtml(u.name || u.email)}</span>
+                    <span class="admin-teacher-email">${escapeHtml(u.email)}</span>
+                    <label>Школа: <input type="text" class="teacher-edit-school" data-id="${u.id}" value="${escapeHtml(u.school || '')}" placeholder="Название школы" /></label>
+                    <label>Класс: <input type="text" class="teacher-edit-class" data-id="${u.id}" value="${escapeHtml(u.school_class || '')}" placeholder="Напр. 5Л" /></label>
+                    <button type="button" class="btn-save-teacher" data-id="${u.id}">Сохранить</button>
+                `;
+                container.appendChild(card);
+            });
+            container.querySelectorAll('.btn-save-teacher').forEach(btn => {
+                btn.addEventListener('click', () => saveTeacher(parseInt(btn.dataset.id)));
+            });
+        }
 
         function escapeHtml(s) {
             if (s == null) return '';
@@ -67,6 +93,11 @@
             allUsers.forEach(u => {
                 const tr = document.createElement('tr');
                 const teacherNames = (u.teachers || []).map(t => t.name || t.email).join(', ') || '—';
+                const teacherOpts = teachers.map(t => {
+                    const sc = [t.school, t.school_class].filter(Boolean).join(', ');
+                    const label = sc ? `${escapeHtml(t.name || t.email)} (${escapeHtml(t.email)}) — ${escapeHtml(sc)}` : `${escapeHtml(t.name || t.email)} (${escapeHtml(t.email)})`;
+                    return `<option value="${t.id}">${label}</option>`;
+                }).join('');
                 tr.innerHTML = `
                     <td>${u.id}</td>
                     <td>${escapeHtml(u.email)}</td>
@@ -79,8 +110,9 @@
                         ${u.role === 'student' ? `
                             <select class="teacher-select" data-id="${u.id}">
                                 <option value="">— назначить учителя —</option>
-                                ${teachers.map(t => `<option value="${t.id}">${escapeHtml(t.name || t.email)} (${escapeHtml(t.email)})</option>`).join('')}
+                                ${teacherOpts}
                             </select>
+                            <button type="button" class="btn-copy-teacher-class" data-id="${u.id}" title="Подставить школу и класс выбранного учителя">Подставить школу/класс</button>
                             <button type="button" class="btn-assign-teacher" data-id="${u.id}">Назначить</button>
                             ${teacherNames !== '—' ? `<button type="button" class="btn-remove-teachers" data-id="${u.id}">Снять</button>` : ''}
                         ` : '—'}
@@ -91,6 +123,9 @@
             });
             tbody.querySelectorAll('.btn-save-user').forEach(btn => {
                 btn.addEventListener('click', () => saveUser(parseInt(btn.dataset.id)));
+            });
+            tbody.querySelectorAll('.btn-copy-teacher-class').forEach(btn => {
+                btn.addEventListener('click', () => copyTeacherSchoolClass(parseInt(btn.dataset.id)));
             });
             tbody.querySelectorAll('.btn-assign-teacher').forEach(btn => {
                 btn.addEventListener('click', () => assignTeacher(parseInt(btn.dataset.id)));
@@ -117,6 +152,38 @@
                     if (u) { u.name = data.user.name; u.school = data.user.school; u.school_class = data.user.school_class; }
                 }
             }).catch(() => {});
+        }
+
+        function saveTeacher(teacherId) {
+            const card = document.querySelector(`.teacher-edit-school[data-id="${teacherId}"]`)?.closest('.admin-teacher-card');
+            if (!card) return;
+            const school = (card.querySelector('.teacher-edit-school').value || '').trim();
+            const schoolClass = (card.querySelector('.teacher-edit-class').value || '').trim();
+            fetch(`/api/admin/users/${teacherId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ school: school || null, school_class: schoolClass || null })
+            }).then(r => r.json()).then(data => {
+                if (data.ok) {
+                    const u = allUsers.find(x => x.id === teacherId);
+                    if (u) { u.school = data.user.school; u.school_class = data.user.school_class; }
+                    const t = teachers.find(x => x.id === teacherId);
+                    if (t) { t.school = data.user.school; t.school_class = data.user.school_class; }
+                }
+            }).catch(() => {});
+        }
+
+        function copyTeacherSchoolClass(studentId) {
+            const row = document.querySelector(`.teacher-select[data-id="${studentId}"]`)?.closest('tr');
+            if (!row) return;
+            const select = row.querySelector('.teacher-select');
+            const teacherId = select.value ? parseInt(select.value) : null;
+            if (!teacherId) return;
+            const teacher = teachers.find(t => t.id === teacherId);
+            if (!teacher) return;
+            row.querySelector('.edit-school').value = teacher.school || '';
+            row.querySelector('.edit-class').value = teacher.school_class || '';
         }
 
         function assignTeacher(studentId) {
