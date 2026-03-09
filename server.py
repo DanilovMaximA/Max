@@ -450,7 +450,13 @@ def me():
     user = get_current_user()
     if not user:
         return jsonify({'user': None})
-    return jsonify({'user': {'id': user.id, 'email': user.email, 'name': user.name, 'role': user.role}})
+    # Показывать "Кабинет родителя" если роль parent ИЛИ пользователь назначен родителем хотя бы одного ученика
+    show_parent_cabinet = (user.role == ROLE_PARENT or
+                           UserStudentLink.query.filter_by(parent_id=user.id).first() is not None)
+    return jsonify({'user': {
+        'id': user.id, 'email': user.email, 'name': user.name, 'role': user.role,
+        'show_parent_cabinet': show_parent_cabinet
+    }})
 
 
 @app.route('/api/gamification')
@@ -558,6 +564,22 @@ def require_role(*roles):
             return f(*args, **kwargs)
         return inner
     return wrapper
+
+
+def require_parent_cabinet(f):
+    """Доступ: роль parent/admin ИЛИ пользователь назначен родителем хотя бы одного ученика."""
+    from functools import wraps
+    @wraps(f)
+    def inner(*args, **kwargs):
+        user = get_current_user()
+        if not user:
+            return jsonify({'error': 'Forbidden'}), 403
+        if user.role in (ROLE_PARENT, ROLE_ADMIN):
+            return f(*args, **kwargs)
+        if UserStudentLink.query.filter_by(parent_id=user.id).first() is not None:
+            return f(*args, **kwargs)
+        return jsonify({'error': 'Forbidden'}), 403
+    return inner
 
 
 @app.route('/api/teacher/students')
@@ -799,7 +821,7 @@ def api_teacher_student_detail(student_id):
 
 
 @app.route('/api/parent/children')
-@require_role(ROLE_PARENT, ROLE_ADMIN)
+@require_parent_cabinet
 def api_parent_children():
     """List children linked to parent."""
     user = get_current_user()
@@ -814,7 +836,7 @@ def api_parent_children():
 
 
 @app.route('/api/parent/children/<int:child_id>/dashboard')
-@require_role(ROLE_PARENT, ROLE_ADMIN)
+@require_parent_cabinet
 def api_parent_dashboard(child_id):
     """Dashboard for one child: progress, achievements, recent errors."""
     user = get_current_user()

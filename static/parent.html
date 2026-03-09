@@ -33,7 +33,7 @@
     <script>
         fetch('/api/me').then(r => r.json()).then(data => {
             const user = data.user;
-            if (!user || (user.role !== 'parent' && user.role !== 'admin')) {
+            if (!user || (user.role !== 'parent' && user.role !== 'admin' && !user.show_parent_cabinet)) {
                 document.getElementById('auth-required').classList.remove('hidden');
                 return;
             }
