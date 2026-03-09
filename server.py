@@ -575,6 +575,7 @@ def api_teacher_students():
     for s in students:
         stats = UserStats.query.filter_by(user_id=s.id).first()
         prog = UserTopicProgress.query.filter_by(user_id=s.id).all()
+        attempts_total = sum(p.total_attempts for p in prog)
         out.append({
             'id': s.id,
             'email': s.email,
@@ -584,6 +585,7 @@ def api_teacher_students():
             'total_stars': stats.total_stars if stats else 0,
             'current_streak': stats.current_streak if stats else 0,
             'topics_count': len(prog),
+            'total_attempts': attempts_total,
             'progress_summary': [{'operation': Topic.query.get(p.topic_id).operation if Topic.query.get(p.topic_id) else None, 'progress_pct': round(100 * p.correct_attempts / max(1, p.total_attempts))} for p in prog],
         })
     by_class = {}

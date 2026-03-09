@@ -183,7 +183,7 @@
                 ul.className = 'students-by-class';
                 (byClass[cls] || []).forEach(s => {
                     const li = document.createElement('li');
-                    li.innerHTML = '<strong>' + escapeHtml(s.name || s.email) + '</strong> — ⭐ ' + s.total_stars + ' | 🔥 ' + s.current_streak + ' | тем: ' + (s.progress_summary ? s.progress_summary.length : 0);
+                    li.innerHTML = '<strong>' + escapeHtml(s.name || s.email) + '</strong> — ⭐ ' + s.total_stars + ' | 🔥 ' + s.current_streak + ' | попыток: ' + (s.total_attempts || 0) + ' | тем: ' + (s.progress_summary ? s.progress_summary.length : 0);
                     li.style.cursor = 'pointer';
                     li.onclick = () => { switchToStudentTab(s.id); };
                     ul.appendChild(li);
