@@ -936,13 +936,20 @@ def api_admin_set_role(user_id):
         return jsonify({'error': 'User not found'}), 404
     if user.role == ROLE_ADMIN:
         return jsonify({'error': 'Нельзя изменить роль администратора'}), 400
-    data = request.get_json() or {}
+    data = request.get_json(silent=True)
+    if not data and request.get_data():
+        try:
+            data = json.loads(request.get_data(as_text=True))
+        except Exception:
+            data = {}
+    data = data or {}
     role = (data.get('role') or '').strip().lower()
     if role not in (ROLE_STUDENT, ROLE_TEACHER, ROLE_PARENT):
-        return jsonify({'error': 'role должен быть student, teacher или parent'}), 400
+        return jsonify({'error': 'role должен быть student, teacher или parent', 'received': role}), 400
     user.role = role
     db.session.commit()
-    return jsonify({'ok': True, 'role': role, 'user': {'id': user.id, 'email': user.email, 'name': user.name, 'role': user.role}})
+    db.session.refresh(user)
+    return jsonify({'ok': True, 'role': user.role, 'user': {'id': user.id, 'email': user.email, 'name': user.name, 'role': user.role}})
 
 
 @app.route('/api/admin/users/<int:user_id>/teacher', methods=['POST', 'DELETE'])

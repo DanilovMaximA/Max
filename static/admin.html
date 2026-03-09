@@ -169,17 +169,19 @@
             const row = document.querySelector(`.role-select[data-id="${id}"]`)?.closest('tr');
             if (!row) return;
             const select = row.querySelector('.role-select');
-            const role = (select && select.value) || '';
+            const role = (select && select.value) ? String(select.value).trim() : '';
             if (!role) return;
             fetch(`/api/admin/users/${id}/role`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
                 credentials: 'include',
-                body: JSON.stringify({ role })
+                body: JSON.stringify({ role: role })
             }).then(r => r.json()).then(data => {
                 if (data.ok) {
                     return Promise.all([fetch('/api/admin/users').then(r => r.json()), fetch('/api/admin/teachers').then(r => r.json())]);
                 }
+                if (data.error) alert('Роль не изменена: ' + (data.error || ''));
+                return null;
             }).then(results => {
                 if (!results || !results.length) return;
                 allUsers = results[0].users || [];
