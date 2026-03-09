@@ -1960,3 +1960,4 @@ else:
         finally:
             _db_ready_event.set()
     threading.Thread(target=_init_db_thread, daemon=True).start()
+    _db_ready_event.set()  # Сразу пускаем запросы, не ждём init_db (иначе 503 при медленном Postgres)
