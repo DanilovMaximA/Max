@@ -50,20 +50,16 @@ function getElementForField(field) {
     return id ? document.getElementById(id) : null;
 }
 
-function loadStats() {
-    const saved = localStorage.getItem('fractionStats');
-    if (saved) {
-        try { stats = JSON.parse(saved); } catch (e) {}
-        updateStatsDisplay();
-    }
-}
-function saveStats() {
-    localStorage.setItem('fractionStats', JSON.stringify(stats));
-}
 function updateStatsDisplay() {
     document.getElementById('total').textContent = stats.total;
     document.getElementById('correct').textContent = stats.correct;
     document.getElementById('wrong').textContent = stats.wrong;
+}
+function setStatsFromServer(total, correct, wrong) {
+    stats.total = total || 0;
+    stats.correct = correct || 0;
+    stats.wrong = wrong || 0;
+    updateStatsDisplay();
 }
 function updateGamificationUI(g) {
     const block = document.getElementById('gamification-stats');
@@ -100,9 +96,9 @@ function showChestAnimation() {
         overlay.classList.add('hidden');
     }, 3000);
 }
-function incTotal() { stats.total++; saveStats(); updateStatsDisplay(); }
-function incCorrect() { stats.correct++; saveStats(); updateStatsDisplay(); }
-function incWrong() { stats.wrong++; saveStats(); updateStatsDisplay(); }
+function incTotal() { stats.total++; updateStatsDisplay(); }
+function incCorrect() { stats.correct++; updateStatsDisplay(); }
+function incWrong() { stats.wrong++; updateStatsDisplay(); }
 
 const THEORY = {
     add: `Сложение дробей с разными знаменателями: найти НОК знаменателей, привести дроби, сложить числители. Пример: 1/4 + 2/3 = 3/12 + 8/12 = 11/12.`,
@@ -731,7 +727,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 updateAuthUI(data.user);
                 return fetch('/api/gamification', { credentials: 'include' }).then(r => r.json()).then(d => {
-                    if (d.gamification) updateGamificationUI(d.gamification);
+                    if (d.gamification) {
+                        updateGamificationUI(d.gamification);
+                        if (typeof d.gamification.total_attempts_all === 'number') {
+                            setStatsFromServer(
+                                d.gamification.total_attempts_all,
+                                d.gamification.correct_attempts_all || 0,
+                                d.gamification.wrong_attempts_all || 0
+                            );
+                        }
+                    }
                 });
             })
             .catch(() => {
@@ -775,7 +780,6 @@ document.addEventListener('DOMContentLoaded', () => {
         profileDropdown.addEventListener('click', (e) => e.stopPropagation());
     }
 
-    loadStats();
     currentSection = 'ordinary';
     currentOperation = document.getElementById('operation-select-ordinary').value;
     updateTheory();

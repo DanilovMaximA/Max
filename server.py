@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 from flask import Flask, request, jsonify, send_from_directory, session, redirect
+from werkzeug.exceptions import HTTPException
 import json
 import traceback
 from itsdangerous import BadSignature
@@ -32,9 +33,34 @@ if _db_uri.startswith('postgres://'):
     _db_uri = _db_uri.replace('postgres://', 'postgresql://', 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = _db_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Таймаут подключения к Postgres (Render и др.), чтобы не зависать при недоступной БД
+if _db_uri.startswith('postgresql'):
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'connect_args': {'connect_timeout': 15}}
 # Сессия на Render: куки при переходе по ссылкам
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 db.init_app(app)
+
+# При запуске через gunicorn (Render) инициализацию БД делаем в фоне, чтобы воркер сразу биндился к порту
+_db_ready_event = threading.Event()
+_db_init_in_background = False
+
+
+@app.before_request
+def _wait_for_db():
+    """Если БД ещё инициализируется в фоне — отдаём 503, чтобы не ронять воркер."""
+    if not _db_init_in_background:
+        return None
+    if request.path.rstrip('/') == '/health':
+        return None
+    if not _db_ready_event.is_set():
+        return jsonify({"error": "Starting up", "retry_after": 60}), 503, {'Retry-After': '60'}
+    return None
+
+
+@app.route('/health')
+def health():
+    """Проверка живости сервера без обращения к БД (Render health check)."""
+    return jsonify({"status": "ok"}), 200
 
 
 @app.route('/api/migrate')
@@ -64,7 +90,9 @@ def debug_db():
 
 @app.errorhandler(Exception)
 def handle_api_exception(e):
-    """Для API-маршрутов возвращать JSON вместо HTML при любой ошибке."""
+    """Для API-маршрутов возвращать JSON вместо HTML при любой ошибке. 404 и прочие HTTP — не превращать в 500."""
+    if isinstance(e, HTTPException):
+        return e.get_response()
     if hasattr(request, 'path') and request.path.startswith('/api/'):
         try:
             db.session.rollback()
@@ -427,6 +455,10 @@ def api_gamification():
             'progress_pct': pct,
             'best_streak': prog.best_streak,
         })
+    # Суммарная статистика попыток по всем темам для текущего пользователя
+    total_attempts_all = sum(p['total_attempts'] for p in topics_progress)
+    correct_attempts_all = sum(p['correct_attempts'] for p in topics_progress)
+    wrong_attempts_all = max(0, total_attempts_all - correct_attempts_all)
     from gamification import STATUS_NAMES
     return jsonify({
         'gamification': {
@@ -438,6 +470,9 @@ def api_gamification():
             'status_name': STATUS_NAMES.get(stats.status, stats.status),
             'chests_available': stats.chests_available,
             'topics_progress': topics_progress,
+            'total_attempts_all': total_attempts_all,
+            'correct_attempts_all': correct_attempts_all,
+            'wrong_attempts_all': wrong_attempts_all,
         }
     })
 
@@ -1917,5 +1952,13 @@ if __name__ == '__main__':
     threading.Timer(1.0, open_browser).start()
     app.run(debug=True, port=5000)
 else:
-    # При запуске через gunicorn (Render и т.д.) создаём таблицы и темы при импорте
-    init_db()
+    # Gunicorn (Render): инициализацию БД — в фоне, чтобы воркер сразу слушал порт
+    _db_init_in_background = True
+    def _init_db_thread():
+        try:
+            init_db()
+        except Exception:
+            traceback.print_exc()
+        finally:
+            _db_ready_event.set()
+    threading.Thread(target=_init_db_thread, daemon=True).start()
