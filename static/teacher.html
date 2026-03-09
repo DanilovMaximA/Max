@@ -257,9 +257,28 @@
 
         function formatTask(params, operation) {
             if (!params) return '—';
-            const signs = { add: '+', subtract: '−', multiply: '×', divide: '÷', compare: '?', power: '^', reduce: '', convert: '' };
-            const sign = (operation && signs[operation]) ? ' ' + signs[operation] + ' ' : ' ';
+            const op = params.operation || operation;
+            const signs = { add: '+', subtract: '−', multiply: '×', divide: '÷', compare: '?', power: '^',
+                decimal_add: '+', decimal_subtract: '−', decimal_multiply: '×', decimal_divide: '÷', decimal_compare: '?' };
+            // Сложение/вычитание десятичных: a_str, b_str
+            if (params.a_str != null && params.b_str != null) {
+                const sign = signs[op] || '+';
+                return params.a_str + ' ' + sign + ' ' + params.b_str;
+            }
+            // Смешанные числа: improper_to_mixed — одна дробь num/den; mixed_to_improper — int_part и num/den
+            if (op === 'mixed_numbers') {
+                if (params.convert_direction === 'improper_to_mixed' && params.num != null && params.den != null)
+                    return params.num + '/' + params.den;
+                if (params.convert_direction === 'mixed_to_improper' && params.int_part != null && params.num != null && params.den != null)
+                    return params.int_part + ' ' + params.num + '/' + params.den;
+                if (params.num != null && params.den != null) return params.num + '/' + params.den;
+            }
+            // Сокращение дробей: одна дробь num/den
+            if (op === 'reduce' && params.num != null && params.den != null)
+                return params.num + '/' + params.den;
+            // Обычные дроби: num1/den1 и num2/den2
             if (params.num1 != null && params.den1 != null) {
+                const sign = (op && signs[op]) ? ' ' + (signs[op] || ' ') + ' ' : ' ';
                 const n2 = params.num2 != null ? sign + params.num2 + '/' + (params.den2 || '') : '';
                 return params.num1 + '/' + (params.den1 || '') + n2;
             }
