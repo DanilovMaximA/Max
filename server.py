@@ -43,6 +43,18 @@ db.init_app(app)
 _db_ready_event = threading.Event()
 _db_init_in_background = False
 
+DEFAULT_ADMIN_EMAIL = 'admin@gmail.com'
+
+
+def ensure_admin_email_role(user):
+    """Гарантировать роль admin для системного логина администратора."""
+    if not user:
+        return user
+    if (user.email or '').strip().lower() == DEFAULT_ADMIN_EMAIL and user.role != ROLE_ADMIN:
+        user.role = ROLE_ADMIN
+        db.session.commit()
+    return user
+
 
 @app.before_request
 def _wait_for_db():
@@ -359,7 +371,8 @@ def get_current_user():
     try:
         prov = _auth_provider_for_request()
         user_id = prov.get_current_user_id()
-        return User.query.get(user_id) if user_id else None
+        user = User.query.get(user_id) if user_id else None
+        return ensure_admin_email_role(user)
     except BadSignature:
         # Куки сессии подписаны старым SECRET_KEY (после деплоя на Render). Очищаем сессию.
         try:
@@ -413,6 +426,7 @@ def login():
     user = User.query.filter_by(email=email).first()
     if not user or not user.password_hash or not bcrypt.checkpw(password, user.password_hash.encode('utf-8')):
         return jsonify({'ok': False, 'error': 'Неверный email или пароль'}), 401
+    user = ensure_admin_email_role(user)
     _auth_provider_for_request().set_user(user.id)
     ev = EventLog(user_id=user.id, event_type='login', payload=None)
     db.session.add(ev)
@@ -2273,6 +2287,11 @@ def init_db():
     """Create tables and seed topics from VALID_OPERATIONS."""
     with app.app_context():
         db.create_all()
+        # После пересоздания БД/миграций удерживаем системного админа.
+        admin_user = User.query.filter_by(email=DEFAULT_ADMIN_EMAIL).first()
+        if admin_user and admin_user.role != ROLE_ADMIN:
+            admin_user.role = ROLE_ADMIN
+            db.session.commit()
         # Миграция: добавить колонки, если их нет (для существующих БД)
         try:
             from sqlalchemy import text
