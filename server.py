@@ -34,8 +34,11 @@ app.config['SQLALCHEMY_DATABASE_URI'] = _db_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 # Таймаут подключения к Postgres (Render и др.)
 if _db_uri.startswith('postgresql'):
+    connect_args = {'connect_timeout': 15}
+    if 'sslmode=' not in _db_uri:
+        connect_args['sslmode'] = 'require'
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
-        'connect_args': {'connect_timeout': 15},
+        'connect_args': connect_args,
         'pool_pre_ping': True,
     }
 # Сессия на Render: куки при переходе по ссылкам
