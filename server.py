@@ -2371,11 +2371,12 @@ else:
     # Gunicorn (Render): без DATABASE_URL не запускаем — нужен PostgreSQL
     if _db_uri == 'sqlite:///:memory:':
         raise SystemExit('Для запуска через gunicorn задайте DATABASE_URL (PostgreSQL). Локальная проверка: запускайте python server.py — тогда используется БД в памяти.')
-    # Инициализация БД до приёма запросов — иначе login/register зависают и gunicorn убивает воркер (WORKER TIMEOUT)
+    # Инициализация БД в фоне: порт биндится сразу, API ждёт готовности через _wait_for_db (503)
     _db_init_in_background = True
-    try:
-        init_db()
-    except Exception:
-        traceback.print_exc()
-        raise SystemExit('Не удалось инициализировать PostgreSQL. Проверьте DATABASE_URL.')
-    _db_ready_event.set()
+    def _init_db_thread():
+        try:
+            init_db()
+            _db_ready_event.set()
+        except Exception:
+            traceback.print_exc()
+    threading.Thread(target=_init_db_thread, daemon=True).start()
