@@ -82,7 +82,18 @@
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         })
-            .then(function (r) { return r.json(); })
+            .then(function (r) {
+                return r.json().catch(function () {
+                    throw new Error(r.status === 503
+                        ? 'Сервер запускается, подождите минуту и попробуйте снова.'
+                        : 'Ошибка сети. Попробуйте ещё раз.');
+                }).then(function (data) {
+                    if (r.status === 503) {
+                        throw new Error(data.error || 'Сервер запускается, подождите минуту и попробуйте снова.');
+                    }
+                    return data;
+                });
+            })
             .then(function (data) {
                 if (data.ok) {
                     window.location.href = '/choose';
@@ -91,8 +102,8 @@
                 showError(data.error || 'Ошибка входа.');
                 submitBtn.disabled = false;
             })
-            .catch(function () {
-                showError('Ошибка сети. Попробуйте ещё раз.');
+            .catch(function (err) {
+                showError(err.message || 'Ошибка сети. Попробуйте ещё раз.');
                 submitBtn.disabled = false;
             });
     });

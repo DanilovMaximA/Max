@@ -32,9 +32,12 @@ if _db_uri.startswith('postgres://'):
     _db_uri = _db_uri.replace('postgres://', 'postgresql://', 1)
 app.config['SQLALCHEMY_DATABASE_URI'] = _db_uri
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-# Таймаут подключения к Postgres (Render и др.), чтобы не зависать при недоступной БД
+# Таймаут подключения к Postgres (Render и др.)
 if _db_uri.startswith('postgresql'):
-    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {'connect_args': {'connect_timeout': 15}}
+    app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+        'connect_args': {'connect_timeout': 15},
+        'pool_pre_ping': True,
+    }
 # Сессия на Render: куки при переходе по ссылкам
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 db.init_app(app)
@@ -2368,14 +2371,11 @@ else:
     # Gunicorn (Render): без DATABASE_URL не запускаем — нужен PostgreSQL
     if _db_uri == 'sqlite:///:memory:':
         raise SystemExit('Для запуска через gunicorn задайте DATABASE_URL (PostgreSQL). Локальная проверка: запускайте python server.py — тогда используется БД в памяти.')
-    # Инициализацию БД — в фоне, чтобы воркер сразу слушал порт
+    # Инициализация БД до приёма запросов — иначе login/register зависают и gunicorn убивает воркер (WORKER TIMEOUT)
     _db_init_in_background = True
-    def _init_db_thread():
-        try:
-            init_db()
-        except Exception:
-            traceback.print_exc()
-        finally:
-            _db_ready_event.set()
-    threading.Thread(target=_init_db_thread, daemon=True).start()
-    _db_ready_event.set()  # Сразу пускаем запросы, не ждём init_db (иначе 503 при медленном Postgres)
+    try:
+        init_db()
+    except Exception:
+        traceback.print_exc()
+        raise SystemExit('Не удалось инициализировать PostgreSQL. Проверьте DATABASE_URL.')
+    _db_ready_event.set()
